@@ -1,0 +1,455 @@
+---
+title: Surface Modifiers
+description: Modifiers for surface rules and terrain surface generation
+icon: mountain
+---
+
+## Overview
+
+Surface modifiers allow you to inject or modify surface rules that control what blocks generate on the surface and underground in different biomes and conditions. This is essential for customizing terrain appearance without modifying biome files.
+
+## Add Surface Rule
+
+Adds surface rules to specified dimension level stems. Surface rules determine which blocks generate at various heights and conditions.
+
+```java
+public record AddSurfaceRuleModifier(
+    int priority,
+    List<ResourceKey<LevelStem>> levels,
+    SurfaceRules.RuleSource surfaceRule
+) implements Modifier
+```
+
+### How It Works
+
+Surface rule injection is independent of other modifiers. The modifier stores the rules during application, and they are later merged into the dimension's noise generation settings during world initialization.
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:add_surface_rule"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority. Lower values execute first, affecting rule order.
+</ParamField>
+
+<ParamField path="levels" type="string[]" required>
+  Array of dimension level stem registry IDs to apply the surface rule to.
+  
+  Common values:
+  - `"minecraft:overworld"`
+  - `"minecraft:the_nether"`
+  - `"minecraft:the_end"`
+</ParamField>
+
+<ParamField path="surface_rule" type="object" required>
+  A `SurfaceRules.RuleSource` object defining the surface rule logic.
+  
+  Supports all vanilla rule types plus Lithostitched extensions:
+  - `minecraft:sequence` - Execute rules in order
+  - `minecraft:condition` - Conditional rule application
+  - `minecraft:block` - Place a specific block
+  - `minecraft:bandlands` - Bandlands surface patterns (Lithostitched)
+  - `lithostitched:reference` - Reference another surface rule
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+```json Simple Block Replacement
+{
+  "type": "lithostitched:add_surface_rule",
+  "priority": 1000,
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "minecraft:biome",
+      "biome_is": ["minecraft:desert"]
+    },
+    "then_run": {
+      "type": "minecraft:sequence",
+      "sequence": [
+        {
+          "type": "minecraft:condition",
+          "if_true": {
+            "type": "minecraft:stone_depth",
+            "offset": 0,
+            "surface_type": "floor",
+            "add_surface_depth": false,
+            "secondary_depth_range": 0
+          },
+          "then_run": {
+            "type": "minecraft:block",
+            "result_state": {
+              "Name": "minecraft:red_sand"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+```json Height-Based Rule
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "minecraft:y_above",
+      "anchor": {
+        "absolute": 100
+      },
+      "surface_depth_multiplier": 0,
+      "add_stone_depth": false
+    },
+    "then_run": {
+      "type": "minecraft:block",
+      "result_state": {
+        "Name": "minecraft:snow_block"
+      }
+    }
+  }
+}
+```
+
+```json Multiple Conditions
+{
+  "type": "lithostitched:add_surface_rule",
+  "priority": 900,
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:sequence",
+    "sequence": [
+      {
+        "type": "minecraft:condition",
+        "if_true": {
+          "type": "minecraft:biome",
+          "biome_is": ["#mymod:custom_biomes"]
+        },
+        "then_run": {
+          "type": "minecraft:condition",
+          "if_true": {
+            "type": "minecraft:stone_depth",
+            "offset": 0,
+            "surface_type": "floor",
+            "add_surface_depth": false,
+            "secondary_depth_range": 0
+          },
+          "then_run": {
+            "type": "minecraft:block",
+            "result_state": {
+              "Name": "mymod:custom_grass"
+            }
+          }
+        }
+      },
+      {
+        "type": "minecraft:condition",
+        "if_true": {
+          "type": "lithostitched:slope",
+          "min_slope": 0.7,
+          "max_slope": 1.0
+        },
+        "then_run": {
+          "type": "minecraft:block",
+          "result_state": {
+            "Name": "minecraft:stone"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+```json Bandlands Surface Rule
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "minecraft:biome",
+      "biome_is": ["mymod:custom_badlands"]
+    },
+    "then_run": {
+      "type": "lithostitched:bandlands",
+      "bands": [
+        {
+          "type": "lithostitched:base",
+          "state": {
+            "Name": "minecraft:terracotta"
+          },
+          "height": 3
+        },
+        {
+          "type": "lithostitched:repeating",
+          "bands": [
+            {
+              "type": "lithostitched:base",
+              "state": {
+                "Name": "minecraft:red_terracotta"
+              },
+              "height": 2
+            },
+            {
+              "type": "lithostitched:base",
+              "state": {
+                "Name": "minecraft:orange_terracotta"
+              },
+              "height": 4
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+```json Reference Surface Rule
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "lithostitched:reference",
+    "rule": "mymod:shared_surface_rules"
+  }
+}
+```
+</CodeGroup>
+
+## Surface Rule Conditions
+
+Lithostitched adds custom surface rule conditions beyond vanilla:
+
+### Slope Condition
+
+Checks the steepness of terrain at a position.
+
+```java
+public record SlopeCondition(
+    double minSlope,
+    double maxSlope
+) implements SurfaceRules.ConditionSource
+```
+
+<CodeGroup>
+```json Slope Condition Example
+{
+  "type": "lithostitched:slope",
+  "min_slope": 0.0,
+  "max_slope": 0.3
+}
+```
+</CodeGroup>
+
+<ParamField path="min_slope" type="number" default="0.0">
+  Minimum slope value (0.0 = flat, 1.0 = vertical)
+</ParamField>
+
+<ParamField path="max_slope" type="number" default="1.0">
+  Maximum slope value
+</ParamField>
+
+### Biome Condition
+
+Extended biome matching with tag support.
+
+<CodeGroup>
+```json Biome Condition with Tags
+{
+  "type": "lithostitched:biome",
+  "biomes": [
+    "#minecraft:is_ocean",
+    "minecraft:beach"
+  ]
+}
+```
+</CodeGroup>
+
+### All Of Condition
+
+All conditions must be true.
+
+<CodeGroup>
+```json All Of Condition
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "minecraft:biome",
+      "biome_is": ["minecraft:plains"]
+    },
+    {
+      "type": "minecraft:y_above",
+      "anchor": {"absolute": 80},
+      "surface_depth_multiplier": 0,
+      "add_stone_depth": false
+    }
+  ]
+}
+```
+</CodeGroup>
+
+### Any Of Condition
+
+At least one condition must be true.
+
+<CodeGroup>
+```json Any Of Condition
+{
+  "type": "lithostitched:any_of",
+  "conditions": [
+    {
+      "type": "minecraft:biome",
+      "biome_is": ["minecraft:desert"]
+    },
+    {
+      "type": "minecraft:biome",
+      "biome_is": ["minecraft:badlands"]
+    }
+  ]
+}
+```
+</CodeGroup>
+
+## Surface Rule Sources
+
+### Bandlands Rule
+
+Creates repeating horizontal bands of blocks, similar to badlands biomes.
+
+```java
+public record BandlandsRule(
+    List<Band> bands
+) implements SurfaceRules.RuleSource
+```
+
+See the bandlands example above for usage.
+
+### Reference Rule
+
+References another surface rule by registry ID, enabling rule reuse.
+
+```java
+public record ReferenceRule(
+    ResourceKey<SurfaceRules.RuleSource> rule
+) implements SurfaceRules.RuleSource
+```
+
+<CodeGroup>
+```json Reference Rule
+{
+  "type": "lithostitched:reference",
+  "rule": "mymod:common_surface_rules"
+}
+```
+</CodeGroup>
+
+## Priority and Rule Order
+
+Surface rules execute in sequence, with earlier rules taking precedence. Priority affects the order in which modifiers add rules:
+
+<Steps>
+  <Step title="Lower priority modifiers add rules first">
+    Priority 500 rules are added before priority 1000 rules
+  </Step>
+  <Step title="Rules within each modifier maintain their order">
+    Sequence rules execute top to bottom
+  </Step>
+  <Step title="Earlier rules can override later rules">
+    First matching rule wins
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use sequence rules for multiple conditions">
+    Wrap multiple rules in a `minecraft:sequence` to ensure proper execution order. The first matching rule in the sequence will be applied.
+  </Accordion>
+  
+  <Accordion title="Leverage biome tags">
+    Use biome tags (e.g., `#minecraft:is_mountain`) instead of listing individual biomes for more flexible and maintainable rules.
+  </Accordion>
+  
+  <Accordion title="Test surface rules visually">
+    - Generate test worlds with F3+G chunk borders visible
+    - Verify surface blocks at different heights and biomes
+    - Check transitions between biomes
+    - Test in different climate zones
+  </Accordion>
+  
+  <Accordion title="Consider performance">
+    - Avoid overly complex condition chains
+    - Use simpler conditions when possible
+    - Profile with F3 debug screen if experiencing lag
+  </Accordion>
+  
+  <Accordion title="Reference shared rules">
+    Create reusable surface rules in separate files and reference them to avoid duplication and simplify maintenance.
+  </Accordion>
+</AccordionGroup>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Custom Biome Surfaces" icon="mountain">
+    Define unique surface blocks for custom biomes using biome conditions
+  </Card>
+  <Card title="Height-Based Layers" icon="layer-group">
+    Create snow caps, stone cliffs, or other height-dependent surfaces
+  </Card>
+  <Card title="Slope-Based Terrain" icon="chart-line">
+    Use slope conditions to generate stone on steep cliffs
+  </Card>
+  <Card title="Banded Rock Formations" icon="bars-staggered">
+    Create badlands-style banded terracotta formations
+  </Card>
+</CardGroup>
+
+## Technical Details
+
+### Application Timing
+
+The `AddSurfaceRuleModifier.applyModifier()` method is empty because surface rules are applied differently than other modifiers:
+
+```java
+@Override
+public void applyModifier() {}
+```
+
+Surface rules are collected during modifier registration and then injected into the noise generation settings when dimensions are initialized. This allows proper integration with Minecraft's surface generation pipeline.
+
+### Level Stem Reference
+
+The `levels` parameter uses `ResourceKey<LevelStem>` rather than direct dimension references:
+
+```java
+List<ResourceKey<LevelStem>> levels
+```
+
+This allows modifiers to target dimensions that may not exist yet during modifier registration.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Surface Conditions" icon="filter" href="/api/surface/conditions">
+    Explore all surface rule condition types
+  </Card>
+  <Card title="Bandlands System" icon="bars" href="/api/surface/bandlands">
+    Learn about bandlands band types
+  </Card>
+  <Card title="Density Modifiers" icon="wave-square" href="/api/modifiers/density-modifiers">
+    Modify terrain shape with density functions
+  </Card>
+  <Card title="Examples" icon="code" href="/guides/bandlands-terrain">
+    See practical surface rule examples
+  </Card>
+</CardGroup>

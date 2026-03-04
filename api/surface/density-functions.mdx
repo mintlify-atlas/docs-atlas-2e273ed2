@@ -1,0 +1,422 @@
+---
+title: Density Functions
+description: Custom density function types for terrain shape modification
+icon: wave-square
+---
+
+## Overview
+
+Density functions control terrain shape and cave generation in Minecraft. Lithostitched adds specialized density function types for preserving original terrain data while allowing modifications through worldgen modifiers.
+
+## Density Function Types
+
+### Merged Density Function
+
+Holds references to both original and modified density functions, allowing the system to maintain access to the root density function while applying modifications.
+
+**Java Interface:**
+```java
+public record MergedDensityFunction(
+    DensityFunction original,
+    DensityFunction wrapped,
+    DensityFunction full
+) implements DensityFunction {
+    @Override
+    public double compute(FunctionContext context) {
+        return this.full.compute(context);
+    }
+    
+    private static DensityFunction unwrappedOriginal(DensityFunction df) {
+        return df instanceof MergedDensityFunction merged 
+            ? unwrappedOriginal(merged.original()) 
+            : df;
+    }
+}
+```
+
+Source: `MergedDensityFunction.java:11-52`
+
+**Purpose:**
+- Preserves the original density function for reference
+- Stores the wrapped (modified) version
+- Executes the full (combined) density function
+- Enables recursive unwrapping to find root functions
+
+**JSON Serialization:**
+```json
+{
+  "type": "lithostitched:merged",
+  "original": {
+    "type": "minecraft:noise",
+    "noise": "minecraft:offset"
+  }
+}
+```
+
+<Note>
+  When serialized, MergedDensityFunction only saves the original function to prevent duplication. The wrapped and full functions are regenerated on load.
+</Note>
+
+### Original Marker Density Function
+
+A marker type that indicates a reference to the original, unmodified density function.
+
+**Java Interface:**
+```java
+public class OriginalMarkerDensityFunction implements MarkerFunction {
+    // No computation - throws exception if called
+    @Override
+    public double compute(FunctionContext context) {
+        throw new IllegalStateException("Marker density function should never be computed!");
+    }
+}
+```
+
+Source: `OriginalMarkerDensityFunction.java:8-16`
+
+**Purpose:**
+- Acts as a placeholder in density function graphs
+- Signals that the original function should be used
+- Never actually executed - resolved before computation
+
+**JSON Format:**
+```json
+{
+  "type": "lithostitched:original_marker"
+}
+```
+
+**Usage in Modifiers:**
+```json
+{
+  "type": "lithostitched:modify_density_function",
+  "target": "minecraft:overworld/base_3d_noise",
+  "modifier": {
+    "type": "minecraft:add",
+    "argument1": {
+      "type": "lithostitched:original_marker"
+    },
+    "argument2": {
+      "type": "minecraft:noise",
+      "noise": "mymod:terrain_variation",
+      "xz_scale": 0.25,
+      "y_scale": 1.0
+    }
+  }
+}
+```
+
+The `original_marker` is replaced with the actual target density function during processing.
+
+### Wrapped Marker Density Function
+
+A marker type that indicates a reference to the wrapped (modified) density function.
+
+**Java Interface:**
+```java
+public class WrappedMarkerDensityFunction implements MarkerFunction {
+    // No computation - throws exception if called
+    @Override
+    public double compute(FunctionContext context) {
+        throw new IllegalStateException("Marker density function should never be computed!");
+    }
+}
+```
+
+Source: `WrappedMarkerDensityFunction.java:8-15`
+
+**Purpose:**
+- References the already-modified density function
+- Allows chaining multiple modifications
+- Resolved before execution
+
+**JSON Format:**
+```json
+{
+  "type": "lithostitched:wrapped_marker"
+}
+```
+
+**Usage in Modifier Chains:**
+```json
+{
+  "type": "lithostitched:modify_density_function",
+  "target": "minecraft:overworld/base_3d_noise",
+  "modifier": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "lithostitched:wrapped_marker"
+    },
+    "argument2": {
+      "type": "minecraft:constant",
+      "argument": 1.5
+    }
+  }
+}
+```
+
+If this is the second modifier on the same density function, `wrapped_marker` references the result of the first modification.
+
+### Marker Function Interface
+
+Base interface for marker density functions.
+
+**Java Interface:**
+```java
+public interface MarkerFunction extends DensityFunction.SimpleFunction {
+    @Override
+    default double compute(FunctionContext context) {
+        throw new IllegalStateException("Marker density function should never be computed!");
+    }
+
+    @Override
+    default double minValue() {
+        return 0;
+    }
+
+    @Override
+    default double maxValue() {
+        return 0;
+    }
+}
+```
+
+Source: `MarkerFunction.java:5-20`
+
+**Characteristics:**
+- Cannot be computed directly
+- Returns 0 for min/max values
+- Acts as a symbolic reference
+- Resolved during density function graph building
+
+## How Markers Work
+
+Markers enable safe reference to density functions that are being modified:
+
+### Without Markers
+
+```json
+{
+  "type": "minecraft:add",
+  "argument1": {
+    "type": "minecraft:noise",
+    "noise": "minecraft:offset"
+  },
+  "argument2": {
+    "type": "minecraft:constant",
+    "argument": 0.5
+  }
+}
+```
+
+This creates a new density function but doesn't preserve the original.
+
+### With Markers
+
+```json
+{
+  "type": "minecraft:add",
+  "argument1": {
+    "type": "lithostitched:original_marker"
+  },
+  "argument2": {
+    "type": "minecraft:constant",
+    "argument": 0.5
+  }
+}
+```
+
+The marker is replaced with the actual target function, creating a MergedDensityFunction that maintains both original and modified versions.
+
+## Practical Examples
+
+### Amplify Terrain
+
+```json
+{
+  "type": "lithostitched:modify_density_function",
+  "target": "minecraft:overworld/base_3d_noise",
+  "modifier": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "lithostitched:original_marker"
+    },
+    "argument2": {
+      "type": "minecraft:constant",
+      "argument": 2.0
+    }
+  }
+}
+```
+
+Doubles the terrain height variation.
+
+### Add Noise Layer
+
+```json
+{
+  "type": "lithostitched:modify_density_function",
+  "target": "minecraft:overworld/base_3d_noise",
+  "modifier": {
+    "type": "minecraft:add",
+    "argument1": {
+      "type": "lithostitched:original_marker"
+    },
+    "argument2": {
+      "type": "minecraft:noise",
+      "noise": "mymod:terrain_detail",
+      "xz_scale": 1.0,
+      "y_scale": 1.0
+    }
+  }
+}
+```
+
+Adds additional noise variation to the base terrain.
+
+### Smooth Terrain
+
+```json
+{
+  "type": "lithostitched:modify_density_function",
+  "target": "minecraft:overworld/base_3d_noise",
+  "modifier": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "lithostitched:original_marker"
+    },
+    "argument2": {
+      "type": "minecraft:constant",
+      "argument": 0.5
+    }
+  }
+}
+```
+
+Reduces terrain variation by half.
+
+### Blend Two Functions
+
+```json
+{
+  "type": "lithostitched:modify_density_function",
+  "target": "minecraft:overworld/base_3d_noise",
+  "modifier": {
+    "type": "minecraft:blend_density",
+    "argument": {
+      "type": "minecraft:add",
+      "argument1": {
+        "type": "minecraft:mul",
+        "argument1": {
+          "type": "lithostitched:original_marker"
+        },
+        "argument2": {
+          "type": "minecraft:constant",
+          "argument": 0.7
+        }
+      },
+      "argument2": {
+        "type": "minecraft:mul",
+        "argument1": {
+          "type": "minecraft:noise",
+          "noise": "mymod:alternative_terrain",
+          "xz_scale": 0.25,
+          "y_scale": 1.0
+        },
+        "argument2": {
+          "type": "minecraft:constant",
+          "argument": 0.3
+        }
+      }
+    }
+  }
+}
+```
+
+Blends 70% original terrain with 30% custom noise.
+
+### Chain Modifications
+
+**First Modifier:**
+```json
+{
+  "type": "lithostitched:modify_density_function",
+  "target": "minecraft:overworld/base_3d_noise",
+  "priority": 100,
+  "modifier": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "lithostitched:original_marker"
+    },
+    "argument2": {
+      "type": "minecraft:constant",
+      "argument": 1.5
+    }
+  }
+}
+```
+
+**Second Modifier:**
+```json
+{
+  "type": "lithostitched:modify_density_function",
+  "target": "minecraft:overworld/base_3d_noise",
+  "priority": 200,
+  "modifier": {
+    "type": "minecraft:add",
+    "argument1": {
+      "type": "lithostitched:wrapped_marker"
+    },
+    "argument2": {
+      "type": "minecraft:noise",
+      "noise": "mymod:detail",
+      "xz_scale": 2.0,
+      "y_scale": 1.0
+    }
+  }
+}
+```
+
+The second modifier uses `wrapped_marker` to reference the result of the first (amplified terrain), then adds detail noise.
+
+## Technical Details
+
+### Recursive Unwrapping
+
+The `unwrappedOriginal` method recursively unwraps MergedDensityFunction layers:
+
+```java
+private static DensityFunction unwrappedOriginal(DensityFunction df) {
+    return df instanceof MergedDensityFunction merged 
+        ? unwrappedOriginal(merged.original()) 
+        : df;
+}
+```
+
+This ensures you always get the true original function, no matter how many modifications have been applied.
+
+### Marker Resolution
+
+Markers are resolved during worldgen modifier processing:
+
+1. Modifier specifies a target density function
+2. System finds the target in the noise router
+3. `original_marker` is replaced with the current target function
+4. `wrapped_marker` is replaced with the previous modification result (if any)
+5. A new MergedDensityFunction is created with original, wrapped, and full references
+
+## Registry Information
+
+**Custom Density Function Types:**
+- `lithostitched:merged` - Merged function wrapper
+- `lithostitched:original_marker` - Original function marker
+- `lithostitched:wrapped_marker` - Wrapped function marker
+
+<Warning>
+  Marker functions should never appear in final density function graphs. If you encounter "Marker density function should never be computed" errors, a marker was not properly resolved during modifier processing.
+</Warning>
+
+## See Also
+
+- [Worldgen Modifiers](/api/modifiers/density-function) - Modifying density functions
+- [Surface Rules](/api/surface/surface-rules) - Terrain surface generation

@@ -1,0 +1,607 @@
+---
+title: "Creating Custom Structures"
+description: "How to add custom structures using template pools, processors, and the Alternate Jigsaw system"
+---
+
+Lithostitched provides powerful tools for creating custom structures using Minecraft's jigsaw system, enhanced with additional features like pool aliases, custom processors, and flexible configuration.
+
+## Structure System Overview
+
+Lithostitched structures use three main components:
+
+1. **Structure Template Pools**: Collections of structure pieces that can be placed
+2. **Structure Processors**: Modify blocks during placement (randomization, swapping, etc.)
+3. **Structure Configuration**: Controls size, height, and placement rules
+
+## Creating a Basic Jigsaw Structure
+
+<Steps>
+  <Step title="Create structure NBT files">
+    Build your structure pieces in-game using structure blocks and save them to:
+    ```
+    data/your_namespace/structure/your_structure/piece_1.nbt
+    data/your_namespace/structure/your_structure/piece_2.nbt
+    ```
+  </Step>
+
+  <Step title="Define template pools">
+    Create a template pool at:
+    ```
+    data/your_namespace/worldgen/template_pool/your_structure/start.json
+    ```
+    ```json
+    {
+      "name": "your_namespace:your_structure/start",
+      "fallback": "minecraft:empty",
+      "elements": [
+        {
+          "weight": 1,
+          "element": {
+            "location": "your_namespace:your_structure/piece_1",
+            "processors": "minecraft:empty",
+            "projection": "rigid",
+            "element_type": "minecraft:single_pool_element"
+          }
+        }
+      ]
+    }
+    ```
+  </Step>
+
+  <Step title="Create structure configuration">
+    Define the structure at:
+    ```
+    data/your_namespace/worldgen/structure/your_structure.json
+    ```
+    ```json
+    {
+      "type": "lithostitched:alternate_jigsaw",
+      "start_pool": "your_namespace:your_structure/start",
+      "size": 7,
+      "start_height": {
+        "absolute": 0
+      },
+      "max_distance_from_center": 80,
+      "use_expansion_hack": false,
+      "biomes": "#minecraft:is_overworld",
+      "step": "surface_structures",
+      "spawn_overrides": {},
+      "terrain_adaptation": "beard_thin"
+    }
+    ```
+  </Step>
+
+  <Step title="Add to structure set">
+    Include your structure in a structure set:
+    ```
+    data/your_namespace/worldgen/structure_set/your_structure.json
+    ```
+    ```json
+    {
+      "structures": [
+        {
+          "structure": "your_namespace:your_structure",
+          "weight": 1
+        }
+      ],
+      "placement": {
+        "type": "minecraft:random_spread",
+        "spacing": 32,
+        "separation": 8,
+        "salt": 123456789
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Template Pool Configuration
+
+### Pool Elements
+
+Each pool element defines a structure piece that can be placed:
+
+```json
+{
+  "weight": 5,
+  "element": {
+    "location": "your_namespace:village/house_1",
+    "processors": "your_namespace:village_weathering",
+    "projection": "rigid",
+    "element_type": "minecraft:single_pool_element"
+  }
+}
+```
+
+- **weight**: Relative spawn chance (higher = more common)
+- **location**: Path to structure NBT file
+- **processors**: Processor list to apply (or `minecraft:empty`)
+- **projection**: `rigid` (exact) or `terrain_matching` (follows ground)
+- **element_type**: Usually `minecraft:single_pool_element`
+
+### Multiple Pieces in One Pool
+
+```json
+{
+  "name": "your_namespace:village/houses",
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 10,
+      "element": {
+        "location": "your_namespace:village/small_house",
+        "processors": "your_namespace:village_processors",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    },
+    {
+      "weight": 5,
+      "element": {
+        "location": "your_namespace:village/large_house",
+        "processors": "your_namespace:village_processors",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    },
+    {
+      "weight": 3,
+      "element": {
+        "location": "your_namespace:village/mansion",
+        "processors": "your_namespace:village_processors",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    }
+  ]
+}
+```
+
+Small houses are twice as common as large houses, and over 3x more common than mansions.
+
+## Structure Processors
+
+Processors modify blocks during structure placement. Lithostitched provides several custom processor types.
+
+### Block Swap Processor
+
+Replace specific blocks with alternatives:
+
+```json
+{
+  "processors": [
+    {
+      "processor_type": "lithostitched:block_swap",
+      "blocks": {
+        "minecraft:oak_planks": "minecraft:spruce_planks",
+        "minecraft:oak_log": "minecraft:spruce_log",
+        "minecraft:oak_stairs": "minecraft:spruce_stairs",
+        "minecraft:oak_slab": "minecraft:spruce_slab",
+        "minecraft:oak_fence": "minecraft:spruce_fence"
+      }
+    }
+  ]
+}
+```
+
+This converts all oak variants to spruce, perfect for biome-specific variations.
+
+### Random Processor Application
+
+Apply different processor lists randomly for variety:
+
+```json
+{
+  "processors": [
+    {
+      "processor_type": "lithostitched:apply_random",
+      "mode": "per_piece",
+      "processor_lists": "#your_namespace:building_palettes"
+    }
+  ]
+}
+```
+
+**Modes:**
+- `per_piece`: Each structure piece gets a random processor
+- `per_structure`: Entire structure uses same random processor
+
+### Creating Processor Lists
+
+Define processor lists at:
+```
+data/your_namespace/worldgen/processor_list/my_processors.json
+```
+
+#### Weathering Processor
+
+```json
+{
+  "processors": [
+    {
+      "processor_type": "minecraft:rule",
+      "rules": [
+        {
+          "input_predicate": {
+            "block": "minecraft:stone_bricks",
+            "predicate_type": "minecraft:random_block_match",
+            "probability": 0.3
+          },
+          "location_predicate": {
+            "predicate_type": "minecraft:always_true"
+          },
+          "output_state": {
+            "Name": "minecraft:cracked_stone_bricks"
+          }
+        },
+        {
+          "input_predicate": {
+            "block": "minecraft:stone_bricks",
+            "predicate_type": "minecraft:random_block_match",
+            "probability": 0.2
+          },
+          "location_predicate": {
+            "predicate_type": "minecraft:always_true"
+          },
+          "output_state": {
+            "Name": "minecraft:mossy_stone_bricks"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Multi-Palette System
+
+Create a tag for random palette selection:
+```
+data/your_namespace/tags/worldgen/processor_list/house_palettes.json
+```
+```json
+{
+  "values": [
+    "your_namespace:palette/oak_and_stone",
+    "your_namespace:palette/spruce_and_cobble",
+    "your_namespace:palette/birch_and_brick"
+  ]
+}
+```
+
+Each referenced processor list swaps blocks to a different material set.
+
+## Alternate Jigsaw Configuration
+
+Lithostitched's `alternate_jigsaw` structure type extends vanilla jigsaw structures with additional features.
+
+### Basic Configuration
+
+```json
+{
+  "type": "lithostitched:alternate_jigsaw",
+  "start_pool": "your_namespace:dungeon/entrance",
+  "start_jigsaw_name": "your_namespace:dungeon_connector",
+  "size": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 5,
+    "max_inclusive": 7
+  },
+  "start_height": {
+    "type": "minecraft:uniform",
+    "min_inclusive": -20,
+    "max_inclusive": 40
+  },
+  "max_distance_from_center": {
+    "horizontal": 80,
+    "vertical": 64
+  },
+  "use_expansion_hack": false,
+  "biomes": "#your_namespace:has_dungeon",
+  "step": "underground_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "bury"
+}
+```
+
+### Size Configuration
+
+The `size` field controls jigsaw depth:
+
+**Fixed size:**
+```json
+"size": 7
+```
+
+**Random size range:**
+```json
+"size": {
+  "type": "minecraft:uniform",
+  "min_inclusive": 4,
+  "max_inclusive": 8
+}
+```
+
+### Height Providers
+
+Control where structures spawn vertically:
+
+**Fixed height:**
+```json
+"start_height": {
+  "absolute": 64
+}
+```
+
+**Height range:**
+```json
+"start_height": {
+  "type": "minecraft:uniform",
+  "min_inclusive": {
+    "above_bottom": 0
+  },
+  "max_inclusive": {
+    "absolute": 64
+  }
+}
+```
+
+**Heightmap-based:**
+```json
+"start_height": {
+  "type": "minecraft:constant",
+  "value": {
+    "type": "minecraft:heightmap",
+    "heightmap": "WORLD_SURFACE_WG"
+  }
+}
+```
+
+### Terrain Adaptation
+
+Controls how structures interact with terrain:
+
+- `none`: No adaptation
+- `bury`: Buries underground portions
+- `beard_thin`: Small beard of terrain below structure
+- `beard_box`: Box-shaped terrain beard
+- `encapsulate`: Completely encapsulates in terrain
+
+### Pool Aliases
+
+Pool aliases allow dynamic pool substitution:
+
+```json
+{
+  "type": "lithostitched:alternate_jigsaw",
+  "start_pool": "your_namespace:temple/entrance",
+  "size": 6,
+  "pool_aliases": [
+    {
+      "alias": "your_namespace:temple/treasure",
+      "target": "your_namespace:temple/treasure_common",
+      "type": "minecraft:direct"
+    }
+  ]
+}
+```
+
+This substitutes the `treasure` pool with `treasure_common` during generation.
+
+## Adding to Existing Structures
+
+Use modifiers to add your pieces to vanilla structures:
+
+```json
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "template_pools": [
+    "minecraft:village/plains/houses"
+  ],
+  "elements": [
+    {
+      "element": {
+        "location": "your_namespace:village/custom_blacksmith",
+        "processors": "minecraft:empty",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 8
+    },
+    {
+      "element": {
+        "location": "your_namespace:village/custom_library",
+        "processors": "your_namespace:village_books",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 5
+    }
+  ]
+}
+```
+
+## Advanced Techniques
+
+### Multi-Level Structures
+
+Create structures with multiple floors:
+
+1. Create pools for each floor level
+2. Use jigsaw blocks to connect levels
+3. Set appropriate projection types
+
+```json
+{
+  "name": "your_namespace:tower/base",
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 1,
+      "element": {
+        "location": "your_namespace:tower/floor_base",
+        "processors": "minecraft:empty",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    }
+  ]
+}
+```
+
+### Conditional Piece Placement
+
+Use processor conditions to place pieces based on environment:
+
+```json
+{
+  "processor_type": "lithostitched:condition",
+  "condition": {
+    "type": "lithostitched:biome",
+    "biomes": "#minecraft:is_ocean"
+  },
+  "if_true": [
+    {
+      "processor_type": "lithostitched:block_swap",
+      "blocks": {
+        "minecraft:air": "minecraft:water"
+      }
+    }
+  ]
+}
+```
+
+### Random Loot Integration
+
+Add loot chests to your structures using block entities in your NBT files, then reference loot tables:
+
+```json
+{
+  "processor_type": "minecraft:rule",
+  "rules": [
+    {
+      "input_predicate": {
+        "block": "minecraft:chest",
+        "predicate_type": "minecraft:always_true"
+      },
+      "location_predicate": {
+        "predicate_type": "minecraft:always_true"
+      },
+      "output_state": {
+        "Name": "minecraft:chest"
+      },
+      "output_nbt": "{LootTable:\"your_namespace:chests/dungeon\"}"
+    }
+  ]
+}
+```
+
+## Testing Your Structure
+
+<Steps>
+  <Step title="Use locate command">
+    ```
+    /locate structure your_namespace:your_structure
+    ```
+  </Step>
+
+  <Step title="Force placement">
+    ```
+    /place structure your_namespace:your_structure ~ ~ ~
+    ```
+  </Step>
+
+  <Step title="Check template pools">
+    ```
+    /place template your_namespace:your_structure/start ~ ~ ~
+    ```
+  </Step>
+
+  <Step title="Verify processors">
+    Test different processors by changing the processor list in your pool and force-placing.
+  </Step>
+</Steps>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Design modular pieces">
+    - Create reusable pieces that work in multiple contexts
+    - Use consistent jigsaw connector names
+    - Keep piece sizes reasonable (16x16 or smaller when possible)
+    - Design pieces with multiple connection points
+  </Accordion>
+
+  <Accordion title="Balance weights carefully">
+    - Common pieces: 10-20
+    - Uncommon pieces: 5-10  
+    - Rare pieces: 1-3
+    - Ensure variety without over-randomization
+  </Accordion>
+
+  <Accordion title="Use processor lists effectively">
+    - Keep processors lightweight
+    - Use tags for material palettes
+    - Test performance with complex processors
+    - Avoid excessive randomization
+  </Accordion>
+
+  <Accordion title="Structure placement considerations">
+    - Choose appropriate terrain adaptation
+    - Set reasonable max_distance values
+    - Use correct biome tags
+    - Balance spacing and separation
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues
+
+<CardGroup cols={2}>
+  <Card title="Structure not generating" icon="circle-question">
+    - Verify biome tag includes target biomes
+    - Check structure set spacing/separation
+    - Ensure start pool exists and is valid
+    - Verify structure step is appropriate
+  </Card>
+
+  <Card title="Pieces not connecting" icon="link-slash">
+    - Match jigsaw connector names exactly
+    - Check projection types match
+    - Verify size allows enough depth
+    - Ensure fallback pool exists
+  </Card>
+
+  <Card title="Processors not applying" icon="paint-roller">
+    - Check processor list path is correct
+    - Verify processor syntax
+    - Test with simple block swap first
+    - Check for conflicting processors
+  </Card>
+
+  <Card title="Performance problems" icon="turtle">
+    - Reduce max_distance_from_center
+    - Simplify processor rules
+    - Limit structure size
+    - Optimize pool element count
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Bandlands Terrain" href="/guides/bandlands-terrain" icon="layer-group">
+    Create banded terrain patterns for unique biomes
+  </Card>
+
+  <Card title="Common Patterns" href="/guides/common-patterns" icon="lightbulb">
+    Explore common worldgen patterns and techniques
+  </Card>
+
+  <Card title="Processor Reference" href="/api/structures/processors" icon="code">
+    Complete documentation of all processor types
+  </Card>
+
+  <Card title="Structure Examples" href="/guides/common-patterns" icon="book">
+    Browse example structures for inspiration
+  </Card>
+</CardGroup>

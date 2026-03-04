@@ -1,0 +1,229 @@
+---
+title: Template Pools
+description: Customize structure template pools with enhanced pool element types
+---
+
+Template pools are collections of structure pieces that can be randomly selected during structure generation. Lithostitched extends vanilla template pools with powerful new pool element types.
+
+## DelegatingPoolElement
+
+The `DelegatingPoolElement` wraps any vanilla pool element and adds advanced features like depth restrictions, placement limits, and custom conditions.
+
+### Configuration Fields
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:delegating"`
+</ParamField>
+
+<ParamField path="delegate" type="StructurePoolElement" required>
+  The underlying pool element that handles actual structure placement. Can be any vanilla pool element type (single, list, feature, legacy, empty).
+</ParamField>
+
+<ParamField path="name" type="identifier">
+  Optional identifier for this pool element. Used for tracking and debugging. If not provided, a generated name is used.
+</ParamField>
+
+<ParamField path="allowed_depth" type="IntRange">
+  Restricts this element to specific depth levels in the structure generation tree. Uses an inclusive range format.
+  
+  ```json
+  "allowed_depth": [0, 3]
+  ```
+  
+  This example only allows placement at depths 0-3 (inclusive).
+</ParamField>
+
+<ParamField path="forced_count" type="integer">
+  Number of instances to force placement before other pieces are considered. These pieces are prioritized in the shuffling algorithm.
+  
+  <Warning>Mutually exclusive with `max_count`</Warning>
+</ParamField>
+
+<ParamField path="max_count" type="integer">
+  Maximum number of instances of this element that can be placed in a single structure.
+  
+  <Warning>Mutually exclusive with `forced_count`</Warning>
+</ParamField>
+
+<ParamField path="condition" type="PlacementCondition">
+  Custom placement condition that must be satisfied for this element to spawn. See [Placement Conditions](/api/conditions/placement-conditions) for available types.
+</ParamField>
+
+<ParamField path="allow_bounding_box_collisions" type="boolean" default="false">
+  If true, allows this piece's bounding box to collide with other pieces.
+</ParamField>
+
+<ParamField path="other_pieces_can_intersect" type="boolean" default="false">
+  If true, allows other pieces to intersect with this piece.
+</ParamField>
+
+<ParamField path="override_terrain_adaption" type="TerrainAdjustment">
+  Overrides the structure's terrain adjustment setting for this specific piece. Valid values:
+  - `"none"`
+  - `"bury"`
+  - `"beard_thin"`
+  - `"beard_box"`
+  - `"encapsulate"`
+</ParamField>
+
+### Example: Limited Depth
+
+Restrict a special room to only appear in the first 2 levels of a structure:
+
+```json
+{
+  "type": "lithostitched:delegating",
+  "delegate": {
+    "element_type": "minecraft:single_pool_element",
+    "location": "mymod:dungeon/treasure_room",
+    "processors": "minecraft:empty",
+    "projection": "rigid"
+  },
+  "allowed_depth": [0, 1],
+  "max_count": 1
+}
+```
+
+### Example: Forced Placement
+
+Guarantee a specific piece appears multiple times:
+
+```json
+{
+  "type": "lithostitched:delegating",
+  "delegate": {
+    "element_type": "minecraft:single_pool_element",
+    "location": "mymod:village/fountain",
+    "processors": "minecraft:empty",
+    "projection": "terrain_matching"
+  },
+  "forced_count": 2,
+  "name": "mymod:village_fountain"
+}
+```
+
+### Example: Conditional Placement
+
+Only place a piece if specific biome conditions are met:
+
+```json
+{
+  "type": "lithostitched:delegating",
+  "delegate": {
+    "element_type": "minecraft:single_pool_element",
+    "location": "mymod:outpost/watchtower",
+    "processors": "minecraft:empty",
+    "projection": "rigid"
+  },
+  "condition": {
+    "type": "lithostitched:in_biome",
+    "biomes": "#minecraft:is_mountain"
+  },
+  "max_count": 3
+}
+```
+
+## Template Pool Structure
+
+Lithostitched-enhanced template pools follow the vanilla structure with additional element types:
+
+```json
+{
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 5,
+      "element": {
+        "type": "lithostitched:delegating",
+        "delegate": {
+          "element_type": "minecraft:single_pool_element",
+          "location": "mymod:structure/common_room",
+          "processors": "mymod:dungeon_processors",
+          "projection": "rigid"
+        }
+      }
+    },
+    {
+      "weight": 1,
+      "element": {
+        "type": "lithostitched:delegating",
+        "delegate": {
+          "element_type": "minecraft:single_pool_element",
+          "location": "mymod:structure/rare_room",
+          "processors": "mymod:dungeon_processors",
+          "projection": "rigid"
+        },
+        "max_count": 1
+      }
+    }
+  ]
+}
+```
+
+## Template Shuffling
+
+Lithostitched uses a custom weighted shuffling algorithm (`LithostitchedTemplates`) that:
+
+1. Assigns a random weight to each element based on its configured weight
+2. Prioritizes elements with `forced_count` set (given a -2 weight offset)
+3. Sorts by calculated random weight: `-pow(random, 1/weight) + (prioritized ? -2 : 0)`
+
+This ensures:
+- Higher weights are more likely to appear earlier in the shuffled list
+- Forced elements appear before all other elements
+- Randomization while maintaining weight distribution
+
+<Note>
+The shuffling algorithm is defined in `LithostitchedTemplates` at `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/structure/LithostitchedTemplates.java:68`
+</Note>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use depth restrictions for structure variety">
+    Restrict rare or special rooms to specific depths to create more interesting dungeon layouts:
+    
+    ```json
+    "allowed_depth": [3, 5]  // Only appears deep in the structure
+    ```
+  </Accordion>
+  
+  <Accordion title="Limit unique pieces with max_count">
+    Prevent overwhelming the structure with special rooms:
+    
+    ```json
+    "max_count": 1  // Only one boss room per structure
+    ```
+  </Accordion>
+  
+  <Accordion title="Combine conditions for precise control">
+    Use multiple conditions to create highly specific placement rules:
+    
+    ```json
+    "condition": {
+      "type": "lithostitched:all_of",
+      "conditions": [
+        { "type": "lithostitched:height_filter", "min_inclusive": 60 },
+        { "type": "lithostitched:in_biome", "biomes": "#minecraft:is_ocean" }
+      ]
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Pool Elements" icon="cube" href="/api/structures/pool-elements">
+    Learn about other pool element types
+  </Card>
+  <Card title="Processors" icon="wand-magic-sparkles" href="/api/structures/processors">
+    Transform blocks during placement
+  </Card>
+  <Card title="Placement Conditions" icon="filter" href="/api/features/placement-conditions">
+    Control when elements spawn
+  </Card>
+  <Card title="Pool Aliases" icon="link" href="/api/structures/pool-aliases">
+    Dynamic pool substitution
+  </Card>
+</CardGroup>

@@ -1,0 +1,397 @@
+---
+title: "Adding Worldgen Modifiers"
+description: "Complete tutorial on creating and applying worldgen modifiers to customize terrain generation"
+---
+
+Worldgen modifiers are the primary way to customize Minecraft's world generation in Lithostitched. They allow you to modify surface rules, features, structures, and more without replacing entire worldgen files.
+
+## Understanding Modifiers
+
+Modifiers are JSON-defined objects that apply changes to worldgen registries at runtime. Each modifier type targets specific aspects of world generation:
+
+- **Surface Rules**: Control block placement at different heights and biomes
+- **Features**: Stack or modify terrain features like trees and ores
+- **Template Pools**: Add custom structure pieces to jigsaw structures
+- **Structure Sets**: Add structures to generation sets
+- **Density Functions**: Modify terrain shape calculations
+
+## Creating Your First Modifier
+
+<Steps>
+  <Step title="Create the modifier file">
+    Create a JSON file in your datapack at:
+    ```
+    data/your_namespace/lithostitched/worldgen_modifier/your_modifier.json
+    ```
+  </Step>
+
+  <Step title="Choose a modifier type">
+    Each modifier has a `type` field. Available types include:
+    - `lithostitched:add_surface_rule`
+    - `lithostitched:stack_feature`
+    - `lithostitched:add_template_pool_elements`
+    - `lithostitched:add_structure_set_entries`
+    - `lithostitched:wrap_density_function`
+  </Step>
+
+  <Step title="Configure priority">
+    Modifiers execute in priority order (lower numbers first). Default priority is `1000`:
+    ```json
+    {
+      "type": "lithostitched:add_surface_rule",
+      "priority": 900
+    }
+    ```
+  </Step>
+</Steps>
+
+## Surface Rule Modifiers
+
+Surface rules determine which blocks appear at different depths and conditions. Use `add_surface_rule` to inject custom surface rules.
+
+### Basic Surface Rule Example
+
+```json
+{
+  "type": "lithostitched:add_surface_rule",
+  "priority": 1000,
+  "levels": [
+    "minecraft:overworld"
+  ],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "minecraft:biome",
+      "biome_is": [
+        "minecraft:desert"
+      ]
+    },
+    "then_run": {
+      "type": "minecraft:block",
+      "result_state": {
+        "Name": "minecraft:red_sand"
+      }
+    }
+  }
+}
+```
+
+This modifier replaces desert sand with red sand in the overworld dimension.
+
+### Multi-Level Surface Rules
+
+```json
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": [
+    "minecraft:overworld",
+    "your_namespace:custom_dimension"
+  ],
+  "surface_rule": {
+    "type": "minecraft:sequence",
+    "sequence": [
+      {
+        "type": "minecraft:condition",
+        "if_true": {
+          "type": "minecraft:vertical_gradient",
+          "random_name": "custom_bedrock",
+          "true_at_and_below": -64,
+          "false_at_and_above": -60
+        },
+        "then_run": {
+          "type": "minecraft:block",
+          "result_state": {
+            "Name": "minecraft:bedrock"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+## Stacking Features
+
+The `stack_feature` modifier wraps existing configured features with additional placed features, allowing you to add decorations on top of existing generation.
+
+### Basic Feature Stacking
+
+```json
+{
+  "type": "lithostitched:stack_feature",
+  "priority": 1000,
+  "base_features": "#your_namespace:tree_features",
+  "stacked_feature": "your_namespace:mushroom_decoration",
+  "placement_type": "cancel_on_failure"
+}
+```
+
+### Placement Types
+
+The `placement_type` field controls how feature placement behaves:
+
+- `never_cancel`: Always places all features regardless of success
+- `cancel_on_failure`: Stops if base feature fails (default)
+- `cancel_on_success`: Stops if base feature succeeds
+
+### Example: Adding Flowers to Trees
+
+```json
+{
+  "type": "lithostitched:stack_feature",
+  "base_features": [
+    "minecraft:oak_tree",
+    "minecraft:birch_tree"
+  ],
+  "stacked_feature": {
+    "feature": "minecraft:flower",
+    "placement": [
+      {
+        "type": "minecraft:count",
+        "count": 3
+      },
+      {
+        "type": "minecraft:in_square"
+      },
+      {
+        "type": "minecraft:heightmap",
+        "heightmap": "WORLD_SURFACE_WG"
+      }
+    ]
+  },
+  "placement_type": "cancel_on_failure"
+}
+```
+
+## Template Pool Modifiers
+
+Add custom structure pieces to Minecraft's jigsaw structures like villages and pillager outposts.
+
+### Adding Pool Elements
+
+```json
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "priority": 1000,
+  "template_pools": [
+    "minecraft:village/plains/houses"
+  ],
+  "elements": [
+    {
+      "element": {
+        "location": "your_namespace:village/plains/custom_house",
+        "processors": "minecraft:empty",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 10
+    }
+  ]
+}
+```
+
+### Using Tags for Multiple Pools
+
+```json
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "template_pools": "#your_namespace:all_village_houses",
+  "elements": [
+    {
+      "element": {
+        "location": "your_namespace:village/universal_decoration",
+        "processors": "your_namespace:village_processors",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 5
+    }
+  ]
+}
+```
+
+Weights determine spawn frequency - higher values mean more common.
+
+## Structure Set Modifiers
+
+Add structures to existing structure sets to control their spacing and placement.
+
+```json
+{
+  "type": "lithostitched:add_structure_set_entries",
+  "priority": 1000,
+  "structure_sets": [
+    "minecraft:villages"
+  ],
+  "entries": [
+    {
+      "structure": "your_namespace:custom_village",
+      "weight": 1
+    }
+  ]
+}
+```
+
+## Density Function Modifiers
+
+Wrap existing density functions to modify terrain shape and cave generation.
+
+```json
+{
+  "type": "lithostitched:wrap_density_function",
+  "priority": 1000,
+  "target_function": "minecraft:overworld/caves/spaghetti_2d",
+  "wrapper_function": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "minecraft:old_blended_noise",
+      "xz_scale": 0.5,
+      "y_scale": 1.0,
+      "xz_factor": 80.0,
+      "y_factor": 160.0,
+      "smear_scale_multiplier": 2.0
+    },
+    "argument2": 1.5
+  }
+}
+```
+
+This example modifies cave generation by multiplying the spaghetti cave density function.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use appropriate priorities">
+    - Surface rules: 900-1100
+    - Feature modifications: 1000-1200
+    - Structure modifications: 800-1000
+    - Use lower priorities for foundational changes
+    - Use higher priorities for refinements
+  </Accordion>
+
+  <Accordion title="Use tags for flexibility">
+    Instead of targeting individual entries, use tags to apply modifiers to groups:
+    ```json
+    "template_pools": "#your_namespace:all_desert_structures"
+    ```
+    This makes your modifiers more compatible with other datapacks.
+  </Accordion>
+
+  <Accordion title="Test in isolation">
+    Create test worlds with only your modifier active to verify behavior before combining with other modifications.
+  </Accordion>
+
+  <Accordion title="Document your changes">
+    Add comments (in a separate file) explaining what each modifier does and why, especially for complex surface rules or density functions.
+  </Accordion>
+</AccordionGroup>
+
+## Common Patterns
+
+### Conditional Surface Rules
+
+Combine multiple conditions for precise control:
+
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "minecraft:stone_depth",
+    "offset": 0,
+    "surface_type": "floor",
+    "add_surface_depth": false,
+    "secondary_depth_range": 0
+  },
+  "then_run": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "minecraft:y_above",
+      "anchor": {
+        "absolute": 60
+      },
+      "surface_depth_multiplier": 0,
+      "add_stone_depth": false
+    },
+    "then_run": {
+      "type": "minecraft:block",
+      "result_state": {
+        "Name": "minecraft:grass_block"
+      }
+    }
+  }
+}
+```
+
+### Gradual Transitions
+
+Use noise conditions for natural-looking transitions:
+
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "minecraft:noise_threshold",
+    "noise": "minecraft:surface",
+    "min_threshold": 0.3,
+    "max_threshold": 1.0
+  },
+  "then_run": {
+    "type": "minecraft:block",
+    "result_state": {
+      "Name": "minecraft:coarse_dirt"
+    }
+  }
+}
+```
+
+## Troubleshooting
+
+<CardGroup cols={2}>
+  <Card title="Modifier not applying" icon="triangle-exclamation">
+    - Check file location: `data/namespace/lithostitched/worldgen_modifier/`
+    - Verify JSON syntax is valid
+    - Ensure priority allows execution order
+    - Check that target resources exist
+  </Card>
+
+  <Card title="Conflicts with other mods" icon="code-merge">
+    - Adjust priorities to control execution order
+    - Use tags instead of direct references
+    - Consider using `append` fields where available
+    - Test compatibility in isolated environments
+  </Card>
+
+  <Card title="Performance issues" icon="gauge-high">
+    - Minimize complex density function wrapping
+    - Use efficient surface rule conditions
+    - Avoid stacking too many features
+    - Profile with timing reports
+  </Card>
+
+  <Card title="Unexpected generation" icon="shuffle">
+    - Check surface rule condition order
+    - Verify biome and dimension filters
+    - Test with vanilla worldgen for comparison
+    - Enable debug logging for modifier application
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Structures" href="/guides/custom-structures" icon="building">
+    Learn how to create complete custom structures with template pools
+  </Card>
+
+  <Card title="Bandlands Terrain" href="/guides/bandlands-terrain" icon="layer-group">
+    Create banded terrain patterns like Mesa biomes
+  </Card>
+
+  <Card title="Common Patterns" href="/guides/common-patterns" icon="book">
+    Explore common use cases and best practices
+  </Card>
+
+  <Card title="API Reference" href="/api/modifiers/overview" icon="code">
+    Complete reference for all modifier types
+  </Card>
+</CardGroup>

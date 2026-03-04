@@ -1,0 +1,296 @@
+---
+title: State Providers
+description: Block state providers for randomizing blocks in world generation
+---
+
+State providers determine which block state to place during world generation. Lithostitched extends Minecraft's state provider system with additional randomization options.
+
+## Weighted Provider
+
+Randomly selects from a weighted list of state providers.
+
+### Type ID
+```
+lithostitched:weighted
+```
+
+### Java Interface
+
+```java
+public final class WeightedProvider extends BlockStateProvider {
+    public WeightedProvider(WeightedList<BlockStateProvider> providers);
+    
+    @Override
+    public BlockState getState(RandomSource random, BlockPos pos);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.stateprovider.WeightedProvider:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:weighted",
+  "entries": [
+    {
+      "data": {
+        "type": "minecraft:simple_state_provider",
+        "state": {
+          "Name": "minecraft:oak_planks"
+        }
+      },
+      "weight": 3
+    },
+    {
+      "data": {
+        "type": "minecraft:simple_state_provider",
+        "state": {
+          "Name": "minecraft:spruce_planks"
+        }
+      },
+      "weight": 1
+    }
+  ]
+}
+```
+
+### Fields
+
+<ParamField path="entries" type="array" required>
+  List of weighted state provider entries
+  
+  <Expandable title="Entry Structure">
+    <ParamField path="data" type="BlockStateProvider" required>
+      The state provider to use when selected
+    </ParamField>
+    
+    <ParamField path="weight" type="integer" required>
+      Weight of this entry (must be >= 0). Higher weights increase selection probability.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Behavior
+
+- Selects one state provider randomly based on weights each time `getState()` is called
+- If the total weight is 0 or no entries exist, returns air
+- Weights are relative - an entry with weight 3 is 3x more likely than weight 1
+- The selected provider's `getState()` method is then called to get the actual block state
+
+### Example: Random Wood Planks
+
+```json
+{
+  "type": "lithostitched:weighted",
+  "entries": [
+    {
+      "data": {
+        "type": "minecraft:simple_state_provider",
+        "state": { "Name": "minecraft:oak_planks" }
+      },
+      "weight": 5
+    },
+    {
+      "data": {
+        "type": "minecraft:simple_state_provider",
+        "state": { "Name": "minecraft:birch_planks" }
+      },
+      "weight": 3
+    },
+    {
+      "data": {
+        "type": "minecraft:simple_state_provider",
+        "state": { "Name": "minecraft:spruce_planks" }
+      },
+      "weight": 2
+    }
+  ]
+}
+```
+
+This gives 50% oak, 30% birch, and 20% spruce planks.
+
+### Example: Nested Weighted Providers
+
+```json
+{
+  "type": "lithostitched:weighted",
+  "entries": [
+    {
+      "data": {
+        "type": "minecraft:simple_state_provider",
+        "state": { "Name": "minecraft:stone" }
+      },
+      "weight": 7
+    },
+    {
+      "data": {
+        "type": "lithostitched:weighted",
+        "entries": [
+          {
+            "data": {
+              "type": "minecraft:simple_state_provider",
+              "state": { "Name": "minecraft:andesite" }
+            },
+            "weight": 1
+          },
+          {
+            "data": {
+              "type": "minecraft:simple_state_provider",
+              "state": { "Name": "minecraft:diorite" }
+            },
+            "weight": 1
+          }
+        ]
+      },
+      "weight": 3
+    }
+  ]
+}
+```
+
+70% stone, 15% andesite, 15% diorite.
+
+---
+
+## Random Block Provider
+
+Randomly selects a block from a set or tag.
+
+### Type ID
+```
+lithostitched:random_block
+```
+
+### Java Interface
+
+```java
+public final class RandomBlockProvider extends BlockStateProvider {
+    public RandomBlockProvider(HolderSet<Block> blocks);
+    
+    @Override
+    public BlockState getState(RandomSource random, BlockPos pos);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.stateprovider.RandomBlockProvider:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:random_block",
+  "blocks": "#minecraft:logs"
+}
+```
+
+or
+
+```json
+{
+  "type": "lithostitched:random_block",
+  "blocks": [
+    "minecraft:oak_log",
+    "minecraft:spruce_log",
+    "minecraft:birch_log"
+  ]
+}
+```
+
+### Fields
+
+<ParamField path="blocks" type="string | array" required>
+  Block tag (prefixed with `#`) or list of block IDs to randomly select from
+</ParamField>
+
+### Behavior
+
+- Selects one block uniformly at random from the set each time `getState()` is called
+- Returns the default block state of the selected block
+- If the set is empty, returns air
+- All blocks have equal probability of selection
+
+### Example: Random Logs
+
+```json
+{
+  "type": "lithostitched:random_block",
+  "blocks": "#minecraft:logs"
+}
+```
+
+Randomly selects from any block in the `minecraft:logs` tag.
+
+### Example: Specific Block Set
+
+```json
+{
+  "type": "lithostitched:random_block",
+  "blocks": [
+    "minecraft:stone",
+    "minecraft:cobblestone",
+    "minecraft:mossy_cobblestone"
+  ]
+}
+```
+
+Each block has a 1/3 chance of being selected.
+
+---
+
+## Comparison
+
+| Feature | Weighted Provider | Random Block Provider |
+|---------|------------------|----------------------|
+| Selection Type | Weighted random | Uniform random |
+| Can nest providers | Yes | No |
+| Supports tags | Via nested providers | Yes, directly |
+| Weight control | Yes | No (equal weights) |
+| Use case | Complex distributions | Simple uniform selection |
+
+---
+
+## Usage in Features
+
+State providers are used in feature configurations wherever a `BlockStateProvider` is accepted:
+
+```json
+{
+  "type": "minecraft:tree",
+  "config": {
+    "trunk_provider": {
+      "type": "lithostitched:weighted",
+      "entries": [
+        {
+          "data": {
+            "type": "minecraft:simple_state_provider",
+            "state": { "Name": "minecraft:oak_log" }
+          },
+          "weight": 3
+        },
+        {
+          "data": {
+            "type": "minecraft:simple_state_provider",
+            "state": { "Name": "minecraft:dark_oak_log" }
+          },
+          "weight": 1
+        }
+      ]
+    }
+  }
+}
+```
+
+## Registration
+
+State providers are registered in `Lithostitched.java:127-130`:
+
+```java
+public static void registerCommonStateProviders(
+    BiConsumer<String, BlockStateProviderType<?>> consumer
+) {
+    consumer.accept("weighted", WeightedProvider.TYPE);
+    consumer.accept("random_block", RandomBlockProvider.TYPE);
+}
+```

@@ -1,0 +1,547 @@
+---
+title: Feature Types
+description: Comprehensive reference for all custom feature types in Lithostitched
+---
+
+Lithostitched provides a collection of custom feature types for advanced world generation, including ore placement, structure generation, dungeon creation, and more.
+
+## CompositeFeature
+
+Combines multiple placed features with configurable execution control.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:composite",
+  "config": {
+    "features": [
+      // List of placed feature references
+    ],
+    "placement_type": "never_cancel" // or "cancel_on_failure", "cancel_on_success"
+  }
+}
+```
+
+### Fields
+
+<ParamField path="features" type="HolderSet<PlacedFeature>" required>
+  List of placed features to execute in sequence
+</ParamField>
+
+<ParamField path="placement_type" type="Type" default="never_cancel">
+  Controls when to stop executing features:
+  - `never_cancel`: Always executes all features
+  - `cancel_on_failure`: Stops if any feature fails to place
+  - `cancel_on_success`: Stops after the first successful placement
+</ParamField>
+
+### Example
+
+```json
+{
+  "type": "lithostitched:composite",
+  "config": {
+    "features": [
+      "minecraft:ore_coal",
+      "minecraft:ore_iron",
+      "minecraft:ore_gold"
+    ],
+    "placement_type": "cancel_on_failure"
+  }
+}
+```
+
+---
+
+## DungeonFeature
+
+Generates customizable dungeon rooms with spawner and loot chests.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:dungeon",
+  "config": {
+    "min_openings": 1,
+    "max_openings": 5,
+    "radius": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 2,
+      "max_inclusive": 3
+    },
+    "max_chests": 2,
+    "spawner_entity": [
+      {
+        "data": "minecraft:zombie",
+        "weight": 2
+      },
+      {
+        "data": "minecraft:skeleton",
+        "weight": 1
+      }
+    ],
+    "floor_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:mossy_cobblestone"
+      }
+    },
+    "wall_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:cobblestone"
+      }
+    },
+    "loot_table": "minecraft:chests/simple_dungeon"
+  }
+}
+```
+
+### Fields
+
+<ParamField path="min_openings" type="int" default="1">
+  Minimum number of wall openings required
+</ParamField>
+
+<ParamField path="max_openings" type="int" default="5">
+  Maximum number of wall openings allowed
+</ParamField>
+
+<ParamField path="radius" type="IntProvider" default="uniform(2, 3)">
+  Controls dungeon size (1-16 blocks)
+</ParamField>
+
+<ParamField path="max_chests" type="int" default="2">
+  Maximum number of loot chests to generate
+</ParamField>
+
+<ParamField path="spawner_entity" type="WeightedList<EntityType>">
+  Weighted list of entities for the spawner. Defaults to zombies, skeletons, and spiders
+</ParamField>
+
+<ParamField path="floor_provider" type="BlockStateProvider">
+  Block provider for the floor. Defaults to mossy cobblestone/cobblestone mix
+</ParamField>
+
+<ParamField path="wall_provider" type="BlockStateProvider" default="cobblestone">
+  Block provider for walls and ceiling
+</ParamField>
+
+<ParamField path="dungeon_invalid_blocks" type="HolderSet<Block>" optional>
+  Blocks that cannot be replaced during generation
+</ParamField>
+
+<ParamField path="loot_table" type="ResourceKey<LootTable>" default="minecraft:chests/simple_dungeon">
+  Loot table for chest contents
+</ParamField>
+
+---
+
+## LargeDripstoneFeature
+
+Generates large dripstone columns (stalactites and stalagmites).
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:large_dripstone",
+  "config": {
+    "state_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:dripstone_block"
+      }
+    },
+    "replaceable_blocks": "#minecraft:features_cannot_replace",
+    "floor_to_ceiling_search_range": 30,
+    "column_radius": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 1,
+      "max_inclusive": 10
+    },
+    "height_scale": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 0.4,
+      "max_inclusive": 2.0
+    },
+    "max_column_radius_to_cave_height_ratio": 0.33,
+    "stalactite_bluntness": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 0.3,
+      "max_inclusive": 0.6
+    },
+    "stalagmite_bluntness": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 0.4,
+      "max_inclusive": 0.9
+    },
+    "wind_speed": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 0.0,
+      "max_inclusive": 0.2
+    },
+    "min_radius_for_wind": 1,
+    "min_bluntness_for_wind": 0.0
+  }
+}
+```
+
+### Fields
+
+<ParamField path="state_provider" type="BlockStateProvider" required>
+  Block state for dripstone columns
+</ParamField>
+
+<ParamField path="replaceable_blocks" type="HolderSet<Block>" required>
+  Blocks that can be replaced by dripstone
+</ParamField>
+
+<ParamField path="floor_to_ceiling_search_range" type="int" default="30">
+  Vertical search range (1-512 blocks)
+</ParamField>
+
+<ParamField path="column_radius" type="IntProvider" required>
+  Base radius for dripstone columns (1-60 blocks)
+</ParamField>
+
+<ParamField path="height_scale" type="FloatProvider" required>
+  Vertical scaling factor (0.0-20.0)
+</ParamField>
+
+<ParamField path="max_column_radius_to_cave_height_ratio" type="float" required>
+  Ratio between column radius and cave height (0.1-1.0)
+</ParamField>
+
+<ParamField path="stalactite_bluntness" type="FloatProvider" required>
+  Bluntness factor for ceiling dripstone (0.1-10.0)
+</ParamField>
+
+<ParamField path="stalagmite_bluntness" type="FloatProvider" required>
+  Bluntness factor for floor dripstone (0.1-10.0)
+</ParamField>
+
+<ParamField path="wind_speed" type="FloatProvider" required>
+  Wind effect strength (0.0-2.0)
+</ParamField>
+
+<ParamField path="min_radius_for_wind" type="int" required>
+  Minimum radius for wind effects (0-100)
+</ParamField>
+
+<ParamField path="min_bluntness_for_wind" type="float" required>
+  Minimum bluntness for wind effects (0.0-5.0)
+</ParamField>
+
+---
+
+## OreFeature
+
+Generates ore veins with multiple target configurations.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:ore",
+  "config": {
+    "size": 9,
+    "targets": [
+      {
+        "predicate": {
+          "type": "minecraft:matching_blocks",
+          "blocks": "minecraft:stone"
+        },
+        "state_provider": {
+          "type": "minecraft:simple_state_provider",
+          "state": {
+            "Name": "minecraft:iron_ore"
+          }
+        }
+      },
+      {
+        "predicate": {
+          "type": "minecraft:matching_blocks",
+          "blocks": "minecraft:deepslate"
+        },
+        "state_provider": {
+          "type": "minecraft:simple_state_provider",
+          "state": {
+            "Name": "minecraft:deepslate_iron_ore"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### Fields
+
+<ParamField path="size" type="int" required>
+  Number of blocks in the ore vein (0-128)
+</ParamField>
+
+<ParamField path="targets" type="List<Target>" required>
+  List of ore targets with predicates and state providers
+</ParamField>
+
+### Target Configuration
+
+<ParamField path="target.predicate" type="BlockPredicate" required>
+  Predicate to test if ore can replace the block
+</ParamField>
+
+<ParamField path="target.state_provider" type="BlockStateProvider" required>
+  Block state provider for the ore
+</ParamField>
+
+---
+
+## SelectFeature
+
+Selects and places the first feature whose predicate passes.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:select",
+  "config": {
+    "features": [
+      {
+        "predicate": {
+          "type": "minecraft:matching_blocks",
+          "blocks": "minecraft:sand"
+        },
+        "feature": "mymod:desert_feature"
+      },
+      {
+        "predicate": {
+          "type": "minecraft:matching_blocks",
+          "blocks": "minecraft:grass_block"
+        },
+        "feature": "mymod:plains_feature"
+      }
+    ]
+  }
+}
+```
+
+### Fields
+
+<ParamField path="features" type="List<Pair<BlockPredicate, PlacedFeature>>" required>
+  List of predicate-feature pairs evaluated in order
+</ParamField>
+
+---
+
+## StructureTemplateFeature
+
+Places structure templates with processors and rotation.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:structure_template",
+  "config": {
+    "template": "mymod:structures/house",
+    "processors": "minecraft:empty",
+    "rotation": "clockwise_90",
+    "liquid_settings": "apply_waterlogging",
+    "start_jigsaw_name": "mymod:entrance"
+  }
+}
+```
+
+### Fields
+
+<ParamField path="template" type="Identifier" required>
+  Resource location of the structure template
+</ParamField>
+
+<ParamField path="processors" type="Holder<StructureProcessorList>" required>
+  Structure processors to apply
+</ParamField>
+
+<ParamField path="rotation" type="Rotation" optional>
+  Fixed rotation, or random if omitted
+</ParamField>
+
+<ParamField path="liquid_settings" type="LiquidSettings" default="apply_waterlogging">
+  How to handle liquids during placement
+</ParamField>
+
+<ParamField path="start_jigsaw_name" type="Identifier" optional>
+  Name of the jigsaw block to use as anchor point
+</ParamField>
+
+---
+
+## WeightedSelectorFeature
+
+Randomly selects one feature from a weighted list.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:weighted_selector",
+  "config": {
+    "features": [
+      {
+        "data": "mymod:rare_feature",
+        "weight": 1
+      },
+      {
+        "data": "mymod:common_feature",
+        "weight": 9
+      }
+    ]
+  }
+}
+```
+
+### Fields
+
+<ParamField path="features" type="WeightedList<PlacedFeature>" required>
+  Weighted list of placed features
+</ParamField>
+
+---
+
+## WellFeature
+
+Generates desert wells with optional suspicious blocks.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:well",
+  "config": {
+    "ground_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:sand"
+      }
+    },
+    "suspicious_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:suspicious_sand"
+      }
+    },
+    "standard_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:sandstone"
+      }
+    },
+    "slab_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:sandstone_slab"
+      }
+    },
+    "fluid_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:water"
+      }
+    },
+    "suspicious_block_placements": {
+      "type": "minecraft:constant",
+      "value": 1
+    },
+    "suspicious_loot_table": "minecraft:archaeology/desert_well"
+  }
+}
+```
+
+### Fields
+
+<ParamField path="ground_provider" type="BlockStateProvider" default="sand">
+  Block provider for ground layer (y=-2)
+</ParamField>
+
+<ParamField path="suspicious_provider" type="BlockStateProvider" default="suspicious_sand">
+  Block provider for suspicious blocks
+</ParamField>
+
+<ParamField path="standard_provider" type="BlockStateProvider" default="sandstone">
+  Block provider for main structure blocks
+</ParamField>
+
+<ParamField path="slab_provider" type="BlockStateProvider" default="sandstone_slab">
+  Block provider for slab decorations
+</ParamField>
+
+<ParamField path="fluid_provider" type="BlockStateProvider" default="water">
+  Block provider for well interior
+</ParamField>
+
+<ParamField path="suspicious_block_placements" type="IntProvider" default="1">
+  Number of suspicious block placements (0-4)
+</ParamField>
+
+<ParamField path="suspicious_loot_table" type="ResourceKey<LootTable>" default="minecraft:archaeology/desert_well">
+  Loot table for suspicious blocks
+</ParamField>
+
+---
+
+## VinesFeature
+
+Generates hanging vine columns.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:vines",
+  "config": {
+    "block": [
+      {
+        "data": "minecraft:vine",
+        "weight": 1
+      }
+    ],
+    "can_place_on": "#minecraft:leaves",
+    "max_length": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 1,
+      "max_inclusive": 5
+    }
+  }
+}
+```
+
+### Fields
+
+<ParamField path="block" type="WeightedList<Block>" required>
+  Weighted list of vine blocks to use (must be VineBlock instances)
+</ParamField>
+
+<ParamField path="can_place_on" type="HolderSet<Block>" optional>
+  Blocks that vines can attach to
+</ParamField>
+
+<ParamField path="max_length" type="IntProvider" default="1">
+  Maximum vine column length (1-256 blocks)
+</ParamField>
+
+## Source References
+
+- CompositeFeature: `CompositeFeature.java:14`
+- DungeonFeature: `DungeonFeature.java:24`
+- LargeDripstoneFeature: `LargeDripstoneFeature.java:23`
+- OreFeature: `OreFeature.java:18`
+- SelectFeature: `SelectFeature.java:15`
+- StructureTemplateFeature: `StructureTemplateFeature.java:22`
+- WeightedSelectorFeature: `WeightedSelectorFeature.java:11`
+- WellFeature: `WellFeature.java:17`
+- VinesFeature: `VinesFeature.java:13`

@@ -1,0 +1,332 @@
+---
+title: Placement Modifiers
+description: Custom placement modifiers for controlling feature positioning
+---
+
+Placement modifiers control how and where features are placed in the world. Lithostitched adds several custom modifiers for advanced placement control.
+
+## ConditionPlacement
+
+Filters feature placement based on custom placement conditions.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:condition",
+  "condition": {
+    "type": "lithostitched:in_biome",
+    "biomes": "#minecraft:is_ocean"
+  }
+}
+```
+
+### Fields
+
+<ParamField path="condition" type="PlacementCondition" required>
+  Placement condition to evaluate. See [Placement Conditions](/api/features/placement-conditions) for available types.
+</ParamField>
+
+### Example Use Cases
+
+**Biome-specific placement:**
+```json
+{
+  "type": "lithostitched:condition",
+  "condition": {
+    "type": "lithostitched:in_biome",
+    "biomes": ["minecraft:desert", "minecraft:badlands"]
+  }
+}
+```
+
+**Height-based filtering:**
+```json
+{
+  "type": "lithostitched:condition",
+  "condition": {
+    "type": "lithostitched:height_filter",
+    "range_type": "absolute",
+    "permitted_range": {
+      "min_inclusive": -64,
+      "max_inclusive": 0
+    }
+  }
+}
+```
+
+**Complex logic:**
+```json
+{
+  "type": "lithostitched:condition",
+  "condition": {
+    "type": "lithostitched:all_of",
+    "conditions": [
+      {
+        "type": "lithostitched:in_biome",
+        "biomes": "#minecraft:is_mountain"
+      },
+      {
+        "type": "lithostitched:height_filter",
+        "range_type": "absolute",
+        "permitted_range": {
+          "min_inclusive": 100,
+          "max_inclusive": 256
+        }
+      }
+    ]
+  }
+}
+```
+
+---
+
+## NoiseSlopePlacement
+
+Multiplies placement count based on noise values, creating density variation.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:noise_slope",
+  "noise": "minecraft:vegetation",
+  "slope": 10,
+  "offset": 5,
+  "xz_scale": 0.1,
+  "y_scale": 0.0
+}
+```
+
+### Fields
+
+<ParamField path="noise" type="ResourceKey<NoiseParameters>" required>
+  Reference to a noise parameter in the noise registry
+</ParamField>
+
+<ParamField path="slope" type="int" required>
+  Multiplier for noise value (creates count variation)
+</ParamField>
+
+<ParamField path="offset" type="int" default="0">
+  Base count added to the noise-based count
+</ParamField>
+
+<ParamField path="xz_scale" type="double" required>
+  Horizontal (X/Z) scaling factor for noise sampling
+</ParamField>
+
+<ParamField path="y_scale" type="double" required>
+  Vertical (Y) scaling factor for noise sampling
+</ParamField>
+
+### How It Works
+
+The modifier samples noise at the position and calculates:
+
+```
+count = ceil(noise_value × slope) + offset
+```
+
+This creates natural density variations based on noise patterns.
+
+### Example Use Cases
+
+**Sparse vegetation in some areas:**
+```json
+{
+  "type": "lithostitched:noise_slope",
+  "noise": "minecraft:vegetation",
+  "slope": 5,
+  "offset": 0,
+  "xz_scale": 0.05,
+  "y_scale": 0.0
+}
+```
+Generates 0-5 features based on vegetation noise.
+
+**Dense ore veins in certain zones:**
+```json
+{
+  "type": "lithostitched:noise_slope",
+  "noise": "minecraft:ore",
+  "slope": 20,
+  "offset": 10,
+  "xz_scale": 0.02,
+  "y_scale": 0.01
+}
+```
+Generates 10-30 features based on ore noise, with vertical variation.
+
+**Guaranteed minimum with variation:**
+```json
+{
+  "type": "lithostitched:noise_slope",
+  "noise": "minecraft:temperature",
+  "slope": 3,
+  "offset": 2,
+  "xz_scale": 0.1,
+  "y_scale": 0.0
+}
+```
+Always generates at least 2 features, up to 5 based on temperature.
+
+---
+
+## OffsetPlacement
+
+Offsets the placement position by configurable amounts on each axis.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:offset",
+  "x_offset": {
+    "type": "minecraft:uniform",
+    "min_inclusive": -8,
+    "max_inclusive": 8
+  },
+  "y_offset": {
+    "type": "minecraft:constant",
+    "value": 0
+  },
+  "z_offset": {
+    "type": "minecraft:uniform",
+    "min_inclusive": -8,
+    "max_inclusive": 8
+  }
+}
+```
+
+### Fields
+
+<ParamField path="x_offset" type="IntProvider" default="0">
+  X-axis offset (-16 to 16 blocks)
+</ParamField>
+
+<ParamField path="y_offset" type="IntProvider" default="0">
+  Y-axis offset (no limit)
+</ParamField>
+
+<ParamField path="z_offset" type="IntProvider" default="0">
+  Z-axis offset (-16 to 16 blocks)
+</ParamField>
+
+### Example Use Cases
+
+**Random horizontal scatter:**
+```json
+{
+  "type": "lithostitched:offset",
+  "x_offset": {
+    "type": "minecraft:uniform",
+    "min_inclusive": -4,
+    "max_inclusive": 4
+  },
+  "z_offset": {
+    "type": "minecraft:uniform",
+    "min_inclusive": -4,
+    "max_inclusive": 4
+  }
+}
+```
+
+**Fixed vertical offset:**
+```json
+{
+  "type": "lithostitched:offset",
+  "y_offset": {
+    "type": "minecraft:constant",
+    "value": -3
+  }
+}
+```
+Places feature 3 blocks below the original position.
+
+**Randomized all axes:**
+```json
+{
+  "type": "lithostitched:offset",
+  "x_offset": {
+    "type": "minecraft:uniform",
+    "min_inclusive": -2,
+    "max_inclusive": 2
+  },
+  "y_offset": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 0,
+    "max_inclusive": 10
+  },
+  "z_offset": {
+    "type": "minecraft:uniform",
+    "min_inclusive": -2,
+    "max_inclusive": 2
+  }
+}
+```
+Randomly offsets in a 5×11×5 region above the origin.
+
+**Biased distribution:**
+```json
+{
+  "type": "lithostitched:offset",
+  "x_offset": {
+    "type": "minecraft:biased_to_bottom",
+    "min_inclusive": -8,
+    "max_inclusive": 8
+  },
+  "z_offset": {
+    "type": "minecraft:biased_to_bottom",
+    "min_inclusive": -8,
+    "max_inclusive": 8
+  }
+}
+```
+Biases offsets toward smaller values.
+
+## Combining Modifiers
+
+Placement modifiers can be chained together:
+
+```json
+{
+  "feature": "mymod:my_feature",
+  "placement": [
+    {
+      "type": "lithostitched:offset",
+      "y_offset": {
+        "type": "minecraft:uniform",
+        "min_inclusive": -10,
+        "max_inclusive": 10
+      }
+    },
+    {
+      "type": "lithostitched:condition",
+      "condition": {
+        "type": "lithostitched:in_biome",
+        "biomes": "#minecraft:is_forest"
+      }
+    },
+    {
+      "type": "lithostitched:noise_slope",
+      "noise": "minecraft:vegetation",
+      "slope": 3,
+      "offset": 1,
+      "xz_scale": 0.1,
+      "y_scale": 0.0
+    }
+  ]
+}
+```
+
+This configuration:
+1. Offsets Y position randomly ±10 blocks
+2. Filters to only forest biomes
+3. Multiplies count based on vegetation noise
+
+## Source References
+
+- ConditionPlacement: `ConditionPlacement.java:11`
+- NoiseSlopePlacement: `NoiseSlopePlacement.java:19`
+- OffsetPlacement: `OffsetPlacement.java:16`

@@ -1,0 +1,321 @@
+---
+title: Surface Rules
+description: Custom surface rule types for advanced terrain generation
+icon: map
+---
+
+## Overview
+
+Lithostitched extends Minecraft's surface rule system with custom rule types that enable bandlands integration, rule referencing, and dynamic rule merging. Surface rules determine which blocks appear at the surface and subsurface of terrain.
+
+## Custom Surface Rule Types
+
+### Bandlands Rule
+
+Applies bandlands stratification to terrain surfaces.
+
+**Java Interface:**
+```java
+public record BandlandsRule(Holder<Bandlands> options) implements SurfaceRules.RuleSource {
+    @Override
+    public SurfaceRules.SurfaceRule apply(SurfaceRules.Context context) {
+        return (x, y, z) -> this.options.value().getBand(system, x, y, z);
+    }
+}
+```
+
+Source: `BandlandsRule.java:11-24`
+
+**JSON Format:**
+```json
+{
+  "type": "lithostitched:bandlands",
+  "options": "mymod:desert_bandlands"
+}
+```
+
+**Example with Conditions:**
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "lithostitched:biome",
+    "biomes": "#mymod:has_banded_terrain"
+  },
+  "then_run": {
+    "type": "lithostitched:bandlands",
+    "options": "mymod:badlands_bands"
+  }
+}
+```
+
+### Reference Rule
+
+References one or more surface rules from the registry, allowing rule reuse across datapacks.
+
+**Java Interface:**
+```java
+public record ReferenceRule(HolderSet<SurfaceRules.RuleSource> rules) implements SurfaceRules.RuleSource {
+    @Override
+    public SurfaceRules.SurfaceRule apply(SurfaceRules.Context context) {
+        // Tries each rule in order, returns first non-null result
+        return (x, y, z) -> {
+            for (SurfaceRules.SurfaceRule rule : rules) {
+                BlockState blockstate = rule.tryApply(x, y, z);
+                if (blockstate != null) return blockstate;
+            }
+            return null;
+        };
+    }
+}
+```
+
+Source: `ReferenceRule.java:12-41`
+
+**JSON Format:**
+```json
+{
+  "type": "lithostitched:reference",
+  "rules": [
+    "mymod:desert_surface",
+    "mymod:canyon_surface",
+    "mymod:plateau_surface"
+  ]
+}
+```
+
+**Single Reference:**
+```json
+{
+  "type": "lithostitched:reference",
+  "rules": "mymod:shared_surface_rule"
+}
+```
+
+**With Tags:**
+```json
+{
+  "type": "lithostitched:reference",
+  "rules": "#mymod:surface_rules/volcanic"
+}
+```
+
+### Transient Merged Rule
+
+Merges custom surface rules with vanilla rules. This is used internally by the Surface Rule Manager but can be serialized.
+
+**Java Interface:**
+```java
+public record TransientMergedRule(
+    List<SurfaceRules.RuleSource> sequence,
+    SurfaceRules.RuleSource original
+) implements SurfaceRules.RuleSource {
+    @Override
+    public SurfaceRules.SurfaceRule apply(SurfaceRules.Context context) {
+        // Tries custom rules first, then falls back to original
+        return (x, y, z) -> {
+            for (SurfaceRules.SurfaceRule rule : customRules) {
+                BlockState state = rule.tryApply(x, y, z);
+                if (state != null) return state;
+            }
+            return original.apply(context).tryApply(x, y, z);
+        };
+    }
+}
+```
+
+Source: `TransientMergedRule.java:15-48`
+
+**JSON Format:**
+```json
+{
+  "type": "lithostitched:transient_merged",
+  "original_source": {
+    "type": "minecraft:block",
+    "result_state": { "Name": "minecraft:stone" }
+  }
+}
+```
+
+<Note>
+  TransientMergedRule is primarily for internal use. When serialized, it only saves the original source to prevent duplicate custom rules on reload.
+</Note>
+
+## Surface Rule Manager
+
+The Surface Rule Manager automatically applies custom surface rules to dimensions at runtime.
+
+**How It Works:**
+
+1. Scans for `AddSurfaceRuleModifier` entries in the worldgen modifier registry
+2. Groups surface rules by target dimension
+3. Sorts rules by priority
+4. Merges custom rules with existing dimension surface rules
+5. Rebuilds NoiseGeneratorSettings with merged rules
+
+Source: `SurfaceRuleManager.java:29-84`
+
+**Example Modifier:**
+```json
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": ["minecraft:overworld"],
+  "priority": 100,
+  "surface_rule": {
+    "type": "minecraft:sequence",
+    "sequence": [
+      {
+        "type": "lithostitched:bandlands",
+        "options": "mymod:mesa_bands"
+      },
+      {
+        "type": "lithostitched:reference",
+        "rules": "#mymod:custom_surfaces"
+      }
+    ]
+  }
+}
+```
+
+## Creating Reusable Surface Rules
+
+### 1. Create a Surface Rule File
+
+Place in `data/<namespace>/lithostitched/surface_rule/<name>.json`:
+
+```json
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:above_preliminary_surface"
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": { "Name": "minecraft:grass_block" }
+      }
+    },
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:water",
+        "offset": 0,
+        "surface_depth_multiplier": 0,
+        "add_stone_depth": false
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": { "Name": "minecraft:dirt" }
+      }
+    }
+  ]
+}
+```
+
+### 2. Reference the Rule
+
+```json
+{
+  "type": "lithostitched:reference",
+  "rules": "mymod:grassland_surface"
+}
+```
+
+### 3. Create Rule Collections with Tags
+
+Place in `data/<namespace>/tags/lithostitched/surface_rule/<tag>.json`:
+
+```json
+{
+  "values": [
+    "mymod:desert_surface",
+    "mymod:mesa_surface",
+    "mymod:badlands_surface"
+  ]
+}
+```
+
+## Combining Surface Rules
+
+### Bandlands with Conditions
+
+```json
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "lithostitched:slope",
+        "height_difference": { "min_inclusive": 4, "max_inclusive": 2147483647 }
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": { "Name": "minecraft:stone" }
+      }
+    },
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "lithostitched:biome",
+        "biomes": "#mymod:bandlands_biomes"
+      },
+      "then_run": {
+        "type": "lithostitched:bandlands",
+        "options": "mymod:colorful_bands"
+      }
+    }
+  ]
+}
+```
+
+### Multi-Biome Bandlands
+
+```json
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "lithostitched:biome",
+        "biomes": "mymod:red_mesa"
+      },
+      "then_run": {
+        "type": "lithostitched:bandlands",
+        "options": "mymod:red_bands"
+      }
+    },
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "lithostitched:biome",
+        "biomes": "mymod:white_mesa"
+      },
+      "then_run": {
+        "type": "lithostitched:bandlands",
+        "options": "mymod:white_bands"
+      }
+    }
+  ]
+}
+```
+
+## Registry Information
+
+- **Registry Type:** Dynamic
+- **Registry Key:** `lithostitched:surface_rule`
+- **Custom Types:**
+  - `lithostitched:bandlands` - Applies bandlands to terrain
+  - `lithostitched:reference` - References registry rules
+  - `lithostitched:transient_merged` - Internal merged rules
+
+Source: `LithostitchedRegistryKeys.java:23`
+
+## See Also
+
+- [Bandlands](/api/surface/bandlands) - Creating stratified terrain
+- [Conditions](/api/surface/conditions) - Custom surface rule conditions
+- [Density Functions](/api/surface/density-functions) - Terrain shaping

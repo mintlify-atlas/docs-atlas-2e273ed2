@@ -1,0 +1,267 @@
+---
+title: 'Modifiers'
+description: 'Learn about the Modifier interface system that powers Lithostitched worldgen customization'
+---
+
+## Overview
+
+Modifiers are the core building blocks of Lithostitched's worldgen customization system. They provide a powerful interface for programmatically modifying Minecraft's world generation at runtime, allowing you to add, remove, or modify worldgen features, structures, surface rules, and more.
+
+<Info>
+Modifiers are loaded from data packs and applied when the server starts, before world generation begins.
+</Info>
+
+## The Modifier Interface
+
+At its core, every modifier implements the `Modifier` interface:
+
+```java /home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/modifier/Modifier.java:17-42
+public interface Modifier {
+    // Dispatch codec for serialization
+    Codec<Modifier> CODEC = Codec.lazyInitialized(() -> {
+        var modifierRegistry = BuiltInRegistries.REGISTRY.getOptional(LithostitchedRegistryKeys.MODIFIER_TYPE.identifier());
+        if (modifierRegistry.isEmpty()) throw new NullPointerException("Worldgen modifier registry does not exist yet!");
+        return ((Registry<MapCodec<? extends Modifier>>) modifierRegistry.get()).byNameCodec();
+    }).dispatch(Modifier::codec, Function.identity());
+
+    // Priority presets
+    MapCodec<Integer> PRIORITY_DEFAULT = Codec.INT.optionalFieldOf("priority", 1000);
+    MapCodec<Integer> PRIORITY_REMOVE = Codec.INT.optionalFieldOf("priority", 2000);
+
+    default void applyModifier(RegistryAccess registryAccess) {
+        this.applyModifier();
+    }
+
+    void applyModifier();
+
+    int priority();
+
+    MapCodec<? extends Modifier> codec();
+
+    default boolean internal$modifiesFabricFeatures() {
+        return false;
+    }
+}
+```
+
+### Key Methods
+
+<CodeGroup>
+```java applyModifier()
+void applyModifier();
+void applyModifier(RegistryAccess registryAccess);
+```
+
+```java priority()
+int priority();
+```
+
+```java codec()
+MapCodec<? extends Modifier> codec();
+```
+</CodeGroup>
+
+- **`applyModifier()`** - The main method that executes your worldgen modifications
+- **`priority()`** - Determines the order in which modifiers are applied (lower = earlier)
+- **`codec()`** - Returns the MapCodec used for JSON serialization/deserialization
+
+## Priority System
+
+Modifiers are applied in order based on their priority value. This is crucial for ensuring modifications happen in the correct sequence.
+
+<CodeGroup>
+```json Low Priority (Applied First)
+{
+  "type": "lithostitched:add_surface_rule",
+  "priority": 500,
+  "levels": ["minecraft:overworld"],
+  "surface_rule": { ... }
+}
+```
+
+```json Default Priority
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "priority": 1000,
+  "pools": [ ... ]
+}
+```
+
+```json High Priority (Applied Last)
+{
+  "type": "lithostitched:remove_structure_set_entries",
+  "priority": 2000,
+  "structure_sets": [ ... ]
+}
+```
+</CodeGroup>
+
+### Priority Presets
+
+- **`PRIORITY_DEFAULT`** - 1000 (standard modifications)
+- **`PRIORITY_REMOVE`** - 2000 (removal operations should happen last)
+
+<Warning>
+Removal modifiers should typically have higher priority values so they execute after additions. Otherwise, you might remove something that another modifier was supposed to add.
+</Warning>
+
+## How Modifiers Are Loaded
+
+Modifiers are loaded through Minecraft's data pack system and applied by the `ModifierManager`:
+
+```java /home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/modifier/ModifierManager.java:21-44
+public static void applyModifiers(MinecraftServer server) {
+    boolean fabricFeaturesModified = false;
+    RegistryAccess registries = server.registryAccess();
+    HolderLookup.RegistryLookup<Modifier> modifiers = registries.lookupOrThrow(LithostitchedRegistryKeys.WORLDGEN_MODIFIER);
+
+    for (Holder.Reference<Modifier> reference : sortByPriority(modifiers.listElements())) {
+        Lithostitched.debug("Applying modifier with id: {}", reference.key().identifier());
+        reference.value().applyModifier(registries);
+
+        if (reference.value().internal$modifiesFabricFeatures()) {
+            fabricFeaturesModified = true;
+        }
+    }
+
+    if (fabricFeaturesModified) {
+        for (LevelStem dimension : Lithostitched.registry(registries, Registries.LEVEL_STEM).stream().toList()) {
+            var accessor = ((ChunkGeneratorAccessor)dimension.generator());
+            BiomeSource source = accessor.getBiomeSource();
+            accessor.setFeaturesPerStep(Suppliers.memoize(() ->
+                FeatureSorter.buildFeaturesPerStep(List.copyOf(source.possibleBiomes()), biome -> accessor.getGetter().apply(biome).features(), true)
+            ));
+        }
+    }
+}
+```
+
+### Loading Process
+
+<Steps>
+  <Step title="Server Startup">
+    Modifiers are loaded when the Minecraft server starts, triggered by mixins into the server initialization
+  </Step>
+  
+  <Step title="Registry Lookup">
+    The `ModifierManager` queries the `WORLDGEN_MODIFIER` registry for all registered modifiers
+  </Step>
+  
+  <Step title="Priority Sorting">
+    All modifiers are sorted by their priority value (ascending order)
+  </Step>
+  
+  <Step title="Sequential Application">
+    Each modifier's `applyModifier()` method is called in order
+  </Step>
+  
+  <Step title="Feature Recompilation">
+    If any modifiers affect Fabric features, feature placement is recompiled
+  </Step>
+</Steps>
+
+## Built-in Modifier Types
+
+Lithostitched provides many built-in modifier types for common operations:
+
+<CardGroup cols={2}>
+  <Card title="add_surface_rule" icon="mountain">
+    Adds surface rules to dimension noise routers
+  </Card>
+  
+  <Card title="add_template_pool_elements" icon="cube">
+    Adds new structure pieces to template pools
+  </Card>
+  
+  <Card title="add_structure_set_entries" icon="building">
+    Adds structures to structure sets
+  </Card>
+  
+  <Card title="remove_structure_set_entries" icon="trash">
+    Removes structures from structure sets
+  </Card>
+  
+  <Card title="wrap_density_function" icon="wave-square">
+    Wraps or modifies density functions
+  </Card>
+  
+  <Card title="wrap_noise_router" icon="network-wired">
+    Modifies noise router configuration
+  </Card>
+  
+  <Card title="set_pool_aliases" icon="link">
+    Creates aliases for template pools
+  </Card>
+  
+  <Card title="stack_feature" icon="layer-group">
+    Stacks multiple features together
+  </Card>
+</CardGroup>
+
+## Example: Creating a Custom Modifier
+
+Here's a complete example of a custom modifier that removes structures:
+
+```java /home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/modifier/RemoveStructureSetEntriesModifier.java:23-45
+public record RemoveStructureSetEntriesModifier(int priority, HolderSet<StructureSet> structureSets, List<Holder<Structure>> entries) implements Modifier {
+    public static final MapCodec<RemoveStructureSetEntriesModifier> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+        PRIORITY_REMOVE.forGetter(RemoveStructureSetEntriesModifier::priority),
+        registrySet(Registries.STRUCTURE_SET, "structure_sets").forGetter(RemoveStructureSetEntriesModifier::structureSets),
+        Structure.CODEC.listOf().fieldOf("structures").forGetter(RemoveStructureSetEntriesModifier::entries)
+    ).apply(instance, RemoveStructureSetEntriesModifier::new));
+
+    @Override
+    public void applyModifier() {
+        this.structureSets.stream().map(Holder::value).forEach(this::applyModifier);
+    }
+
+    private void applyModifier(StructureSet structureSet) {
+        StructureSetAccessor structureSetAccessor = ((StructureSetAccessor)(Object)structureSet);
+        List<StructureSet.StructureSelectionEntry> structureSelectionEntries = new ArrayList<>(structureSet.structures());
+        structureSetAccessor.setStructures(structureSelectionEntries.stream().filter(setEntry -> !entries.contains(setEntry.structure())).collect(Collectors.toList()));
+    }
+
+    @Override
+    public MapCodec<? extends Modifier> codec() {
+        return CODEC;
+    }
+}
+```
+
+<Note>
+This modifier uses `PRIORITY_REMOVE` (2000) to ensure it runs after other modifiers that might add structures.
+</Note>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Choose appropriate priorities">
+    - Use lower priorities (500-900) for foundational changes
+    - Use default priority (1000) for standard modifications
+    - Use higher priorities (1500-2000) for removals and overrides
+  </Accordion>
+  
+  <Accordion title="Test modifier order">
+    If modifiers depend on each other, test different priority values to ensure they apply in the correct sequence.
+  </Accordion>
+  
+  <Accordion title="Use debug logging">
+    Enable `log_debug_messages` in the Lithostitched config to see the order in which modifiers are applied.
+  </Accordion>
+  
+  <Accordion title="Handle registry access carefully">
+    When using `applyModifier(RegistryAccess registryAccess)`, ensure the registries you need are available at modification time.
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Registry System" icon="book" href="/concepts/registry-system">
+    Learn how modifiers are registered
+  </Card>
+  
+  <Card title="Data-Driven Config" icon="file-code" href="/concepts/data-driven-config">
+    Create modifier JSON files
+  </Card>
+</CardGroup>

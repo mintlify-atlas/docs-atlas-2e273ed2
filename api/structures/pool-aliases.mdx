@@ -1,0 +1,325 @@
+---
+title: Pool Aliases
+description: Dynamic template pool substitution system for structure variation
+---
+
+Pool aliases allow you to dynamically substitute template pools during structure generation, enabling powerful variations and randomization.
+
+## Overview
+
+Pool aliases replace references to one template pool with another at generation time. This is particularly useful for:
+
+- Creating structure variants (different wood types, stone styles, etc.)
+- Randomizing Trial Chamber layouts
+- Swapping mob spawner contents
+- Conditional pool selection based on biome or other factors
+
+## RandomEntries
+
+The `lithostitched:internal/random_entries` alias type randomly selects matching pools from holder sets.
+
+<Warning>
+This is an internal system primarily used for Trial Chambers. The documentation describes it as "hacky" and not recommended for general use.
+</Warning>
+
+### Configuration
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:internal/random_entries"`
+</ParamField>
+
+<ParamField path="aliases" type="ResourceKey<StructureTemplatePool>[]" required>
+  List of pool resource keys that will be aliased (replaced).
+</ParamField>
+
+<ParamField path="pools" type="HolderSet<StructureTemplatePool>[]" required>
+  List of holder sets containing pools to substitute. Must be the same length as `aliases`.
+  
+  Each holder set must contain the same number of pools.
+</ParamField>
+
+### Example: Trial Chamber Spawners
+
+From Lithostitched's Trial Chambers configuration:
+
+```json
+{
+  "type": "lithostitched:set_pool_aliases",
+  "structures": "minecraft:trial_chambers",
+  "pool_aliases": [
+    {
+      "type": "lithostitched:internal/random_entries",
+      "aliases": [
+        "minecraft:trial_chambers/spawner/contents/ranged",
+        "minecraft:trial_chambers/spawner/contents/slow_ranged"
+      ],
+      "pools": [
+        "#lithostitched:trial_spawner/ranged",
+        "#lithostitched:trial_spawner/slow_ranged"
+      ]
+    },
+    {
+      "type": "lithostitched:internal/random_entries",
+      "aliases": [
+        "minecraft:trial_chambers/spawner/contents/melee"
+      ],
+      "pools": [
+        "#lithostitched:trial_spawner/melee"
+      ]
+    },
+    {
+      "type": "lithostitched:internal/random_entries",
+      "aliases": [
+        "minecraft:trial_chambers/spawner/contents/small_melee"
+      ],
+      "pools": [
+        "#lithostitched:trial_spawner/small_melee"
+      ]
+    }
+  ],
+  "append": false
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/resources/data/lithostitched/lithostitched/worldgen_modifier/set_trial_chambers_pool_aliases.json:1`
+
+## How RandomEntries Works
+
+1. **Validation**: Ensures all holder sets have the same number of pools
+2. **Random Selection**: Picks a random index based on world seed
+3. **Synchronized Replacement**: All aliases use the same random index, maintaining consistency
+
+```java
+public void forEachResolved(RandomSource random, 
+    BiConsumer<ResourceKey<StructureTemplatePool>, 
+    ResourceKey<StructureTemplatePool>> consumer) {
+    int index = random.nextInt(pools.getFirst().size());
+    for (int i = 0; i < pools.size(); i++) {
+        consumer.accept(aliases.get(i), pools.get(i).get(index).unwrapKey().get());
+    }
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/poolalias/RandomEntries.java:46`
+
+## Pool Alias Tags
+
+Define holder sets using tags for pool organization:
+
+**File:** `data/lithostitched/tags/worldgen/template_pool/trial_spawner/melee.json`
+
+```json
+{
+  "values": [
+    "lithostitched:trial_spawner/melee/variant_1",
+    "lithostitched:trial_spawner/melee/variant_2",
+    "lithostitched:trial_spawner/melee/variant_3"
+  ]
+}
+```
+
+This tag groups related pools that can be randomly selected.
+
+## Setting Pool Aliases
+
+Use the `lithostitched:set_pool_aliases` worldgen modifier to apply aliases:
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:set_pool_aliases"`
+</ParamField>
+
+<ParamField path="structures" type="ResourceKey<Structure> | HolderSet<Structure>" required>
+  Structure(s) to apply aliases to. Can be a single structure key or a tag.
+</ParamField>
+
+<ParamField path="pool_aliases" type="PoolAliasBinding[]" required>
+  List of alias bindings to apply.
+</ParamField>
+
+<ParamField path="append" type="boolean" default="false">
+  If `true`, appends to existing aliases. If `false`, replaces all aliases for this structure.
+</ParamField>
+
+### Example: Biome-Specific Variants
+
+Create different village styles by biome:
+
+```json
+{
+  "type": "lithostitched:set_pool_aliases",
+  "structures": "minecraft:village",
+  "pool_aliases": [
+    {
+      "type": "lithostitched:internal/random_entries",
+      "aliases": [
+        "minecraft:village/common/houses"
+      ],
+      "pools": [
+        "#mymod:village_variants/houses"
+      ]
+    }
+  ],
+  "append": false
+}
+```
+
+## Validation Rules
+
+The `RandomEntries` codec validates:
+
+1. **Equal List Lengths**: `aliases.size() == pools.size()`
+2. **Consistent Pool Sizes**: All holder sets must have the same number of pools
+
+```java
+private static DataResult<RandomEntries> validate(RandomEntries entry) {
+    if (entry.pools.size() == entry.aliases.size()) {
+        Integer size = null;
+        
+        for (HolderSet<StructureTemplatePool> pool : entry.pools) {
+            if (size != null) {
+                if (pool.size() != size) 
+                    return DataResult.error(() -> 
+                        "Each template pool set should have the same number of entries");
+            }
+            size = pool.size();
+        }
+        
+        return DataResult.success(entry);
+    }
+    return DataResult.error(() -> 
+        "List of aliases and list of pools should be the same length");
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/poolalias/RandomEntries.java:28`
+
+## Common Patterns
+
+### Synchronized Variants
+
+Replace multiple related pools while keeping them synchronized:
+
+```json
+{
+  "type": "lithostitched:internal/random_entries",
+  "aliases": [
+    "mymod:dungeon/floor_basic",
+    "mymod:dungeon/floor_special",
+    "mymod:dungeon/walls"
+  ],
+  "pools": [
+    "#mymod:dungeon_style/basic_floors",
+    "#mymod:dungeon_style/special_floors",
+    "#mymod:dungeon_style/walls"
+  ]
+}
+```
+
+All three pools use the same random index, ensuring consistent theming.
+
+### Single Pool Randomization
+
+Randomize one pool independently:
+
+```json
+{
+  "type": "lithostitched:internal/random_entries",
+  "aliases": [
+    "mymod:spawner/contents"
+  ],
+  "pools": [
+    "#mymod:mob_sets/all"
+  ]
+}
+```
+
+## Limitations
+
+<Warning>
+Pool aliases have some important limitations:
+
+- **Generation Time Only**: Aliases are resolved during structure generation, not at datapack load time
+- **World Seed Based**: Same world seed produces same alias resolutions
+- **No Nesting**: Alias resolution doesn't support recursive pool substitution
+- **Internal System**: The RandomEntries implementation is marked as "hacky" and may change
+</Warning>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep pool sets balanced">
+    Ensure all holder sets in a RandomEntries binding have equal sizes:
+    
+    ```json
+    // Good: Both tags have 3 pools
+    "pools": [
+      "#mymod:set_a",  // Contains 3 pools
+      "#mymod:set_b"   // Contains 3 pools
+    ]
+    
+    // Bad: Mismatched sizes will cause validation error
+    "pools": [
+      "#mymod:set_a",  // Contains 3 pools
+      "#mymod:set_b"   // Contains 5 pools - ERROR!
+    ]
+    ```
+  </Accordion>
+  
+  <Accordion title="Use tags for organization">
+    Organize variant pools with tags for easier management:
+    
+    ```
+    data/mymod/tags/worldgen/template_pool/
+      stone_variants/
+        cobblestone.json
+        stone_bricks.json
+        andesite.json
+    ```
+  </Accordion>
+  
+  <Accordion title="Document alias dependencies">
+    Pool aliases create implicit dependencies. Document which pools are aliased:
+    
+    ```json
+    // This aliases minecraft:trial_chambers/spawner/contents/melee
+    // Ensure custom mob pools are compatible with Trial Chamber spawner format
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Java Interface
+
+```java
+public record RandomEntries(
+    List<ResourceKey<StructureTemplatePool>> aliases,
+    List<HolderSet<StructureTemplatePool>> pools
+) implements PoolAliasBinding {
+    
+    @Override
+    public void forEachResolved(RandomSource random, 
+        BiConsumer<ResourceKey<StructureTemplatePool>, 
+            ResourceKey<StructureTemplatePool>> consumer);
+    
+    @Override
+    public Stream<ResourceKey<StructureTemplatePool>> allTargets();
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/poolalias/RandomEntries.java:21`
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Template Pools" icon="layer-group" href="/api/structures/template-pools">
+    Configure structure template pools
+  </Card>
+  <Card title="Processors" icon="wand-magic-sparkles" href="/api/structures/processors">
+    Transform blocks during placement
+  </Card>
+  <Card title="Structure Types" icon="building" href="/api/structures/template-pools">
+    Structure generation systems
+  </Card>
+  <Card title="Worldgen Modifiers" icon="globe" href="/api/modifiers/structure-modifiers">
+    Modify world generation
+  </Card>
+</CardGroup>

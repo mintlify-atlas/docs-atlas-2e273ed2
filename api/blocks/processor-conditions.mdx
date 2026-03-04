@@ -1,0 +1,736 @@
+---
+title: Processor Conditions
+description: Conditional logic for structure processors
+---
+
+Processor conditions provide conditional logic for structure processing, allowing processors to execute only when certain conditions are met. They are used primarily with the [Condition Processor](/api/processors/condition).
+
+## Condition Interface
+
+All processor conditions implement the `ProcessorCondition` interface:
+
+```java
+public interface ProcessorCondition {
+    boolean test(
+        WorldGenLevel level,
+        Data data,
+        StructurePlaceSettings settings,
+        RandomSource random
+    );
+    
+    record Data(
+        BlockPos pos,           // Structure placement position
+        BlockPos pivot,         // Structure pivot point
+        StructureBlockInfo relative,  // Block in template coordinates
+        StructureBlockInfo absolute   // Block in world coordinates
+    ) {}
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.processor.condition.ProcessorCondition:1`
+
+---
+
+## All Of
+
+Returns `true` only if all child conditions return `true`.
+
+### Type ID
+```
+lithostitched:all_of
+```
+
+### Java Interface
+
+```java
+public record AllOf(List<ProcessorCondition> conditions) 
+    implements ProcessorCondition {
+    
+    @Override
+    public boolean test(WorldGenLevel level, Data data, 
+                       StructurePlaceSettings settings, RandomSource random);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.processor.condition.AllOf:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:random_chance",
+      "chance": 0.5
+    },
+    {
+      "type": "lithostitched:matching_blocks",
+      "blocks": "#minecraft:planks",
+      "match_type": "input"
+    }
+  ]
+}
+```
+
+### Fields
+
+<ParamField path="conditions" type="array" required>
+  List of conditions that must all be true
+</ParamField>
+
+### Behavior
+
+- Evaluates conditions in order
+- Short-circuits on first `false` result (remaining conditions are not tested)
+- Returns `true` if all conditions return `true`
+- Returns `true` if the list is empty
+
+### Example
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:random_chance",
+      "chance": 0.3
+    },
+    {
+      "type": "lithostitched:matching_blocks",
+      "blocks": ["minecraft:stone"],
+      "match_type": "location"
+    }
+  ]
+}
+```
+
+Only proceeds if random chance passes AND the block at the location is stone.
+
+---
+
+## Any Of
+
+Returns `true` if at least one child condition returns `true`.
+
+### Type ID
+```
+lithostitched:any_of
+```
+
+### Java Interface
+
+```java
+public record AnyOf(List<ProcessorCondition> conditions) 
+    implements ProcessorCondition {
+    
+    @Override
+    public boolean test(WorldGenLevel level, Data data,
+                       StructurePlaceSettings settings, RandomSource random);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.processor.condition.AnyOf:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:any_of",
+  "conditions": [
+    {
+      "type": "lithostitched:matching_blocks",
+      "blocks": ["minecraft:dirt"],
+      "match_type": "location"
+    },
+    {
+      "type": "lithostitched:matching_blocks",
+      "blocks": ["minecraft:grass_block"],
+      "match_type": "location"
+    }
+  ]
+}
+```
+
+### Fields
+
+<ParamField path="conditions" type="array" required>
+  List of conditions where at least one must be true
+</ParamField>
+
+### Behavior
+
+- Evaluates conditions in order
+- Short-circuits on first `true` result (remaining conditions are not tested)
+- Returns `true` if any condition returns `true`
+- Returns `false` if the list is empty
+
+### Example
+
+```json
+{
+  "type": "lithostitched:any_of",
+  "conditions": [
+    {
+      "type": "lithostitched:matching_blocks",
+      "blocks": "#minecraft:logs",
+      "match_type": "input"
+    },
+    {
+      "type": "lithostitched:matching_blocks",
+      "blocks": "#minecraft:planks",
+      "match_type": "input"
+    }
+  ]
+}
+```
+
+Matches if the input block is either a log or planks.
+
+---
+
+## Matching Blocks
+
+Tests if a block matches a set of blocks and optional state properties.
+
+### Type ID
+```
+lithostitched:matching_blocks
+```
+
+### Java Interface
+
+```java
+public record MatchingBlocks(
+    HolderSet<Block> blocks,
+    StatePropertiesPredicate properties,
+    BlockType matchType
+) implements ProcessorCondition {
+    
+    @Override
+    public boolean test(WorldGenLevel level, Data data,
+                       StructurePlaceSettings settings, RandomSource random);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.processor.condition.MatchingBlocks:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:matching_blocks",
+  "blocks": "#minecraft:planks",
+  "properties": {
+    "conditions": [
+      {
+        "name": "waterlogged",
+        "values": ["true"]
+      }
+    ]
+  },
+  "match_type": "input"
+}
+```
+
+### Fields
+
+<ParamField path="blocks" type="string | array" required>
+  Block tag (prefixed with `#`) or list of block IDs to match against
+</ParamField>
+
+<ParamField path="properties" type="StatePropertiesPredicate" default="{}">
+  Optional state property requirements. Uses Minecraft's `StatePropertiesPredicate` format.
+</ParamField>
+
+<ParamField path="match_type" type="string" default="input">
+  Which block to test:
+  - `input` - The block from the structure template (relative coordinates)
+  - `location` - The block currently at the world location (absolute coordinates)
+</ParamField>
+
+### Block Type Enum
+
+```java
+public enum BlockType {
+    INPUT("input", data -> data.relative().state()),
+    LOCATION("location", data -> data.absolute().state());
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.processor.enums.BlockType:1`
+
+### Behavior
+
+- Tests if the specified block matches the block set
+- Optionally tests block state properties
+- Can test either the template block or the world block
+
+### Examples
+
+#### Simple Block Match
+
+```json
+{
+  "type": "lithostitched:matching_blocks",
+  "blocks": ["minecraft:oak_planks", "minecraft:spruce_planks"],
+  "match_type": "input"
+}
+```
+
+#### Tag Match with Properties
+
+```json
+{
+  "type": "lithostitched:matching_blocks",
+  "blocks": "#minecraft:stairs",
+  "properties": {
+    "conditions": [
+      {
+        "name": "facing",
+        "values": ["north", "south"]
+      }
+    ]
+  },
+  "match_type": "input"
+}
+```
+
+#### World Block Match
+
+```json
+{
+  "type": "lithostitched:matching_blocks",
+  "blocks": ["minecraft:water"],
+  "match_type": "location"
+}
+```
+
+Checks if there's water at the placement location in the world.
+
+---
+
+## Not
+
+Inverts the result of a child condition.
+
+### Type ID
+```
+lithostitched:not
+```
+
+### Java Interface
+
+```java
+public record Not(ProcessorCondition condition) 
+    implements ProcessorCondition {
+    
+    @Override
+    public boolean test(WorldGenLevel level, Data data,
+                       StructurePlaceSettings settings, RandomSource random);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.processor.condition.Not:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:not",
+  "condition": {
+    "type": "lithostitched:random_chance",
+    "chance": 0.3
+  }
+}
+```
+
+### Fields
+
+<ParamField path="condition" type="ProcessorCondition" required>
+  The condition to invert
+</ParamField>
+
+### Behavior
+
+- Returns `true` if the child condition returns `false`
+- Returns `false` if the child condition returns `true`
+
+### Example
+
+```json
+{
+  "type": "lithostitched:not",
+  "condition": {
+    "type": "lithostitched:matching_blocks",
+    "blocks": "#minecraft:air",
+    "match_type": "location"
+  }
+}
+```
+
+Returns `true` if the location is NOT air.
+
+---
+
+## Position
+
+Tests block position using Minecraft's position rule tests.
+
+### Type ID
+```
+lithostitched:position
+```
+
+### Java Interface
+
+```java
+public record Position(PosRuleTest predicate, PosAnchor anchor) 
+    implements ProcessorCondition {
+    
+    @Override
+    public boolean test(WorldGenLevel level, Data data,
+                       StructurePlaceSettings settings, RandomSource random);
+    
+    public enum PosAnchor {
+        STRUCTURE_START,  // Relative to structure origin
+        PIECE             // Relative to piece origin
+    }
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.processor.condition.Position:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:position",
+  "predicate": {
+    "type": "minecraft:axis_aligned_linear_pos",
+    "axis": "y",
+    "min_dist": 0,
+    "max_dist": 5
+  },
+  "anchor": "structure_start"
+}
+```
+
+### Fields
+
+<ParamField path="predicate" type="PosRuleTest" required>
+  Minecraft position rule test. Common types:
+  - `minecraft:axis_aligned_linear_pos` - Tests distance along an axis
+  - `minecraft:linear_pos` - Tests linear distance from anchor
+</ParamField>
+
+<ParamField path="anchor" type="string" default="structure_start">
+  Position anchor point:
+  - `structure_start` - Tests relative to structure origin
+  - `piece` - Tests relative to piece origin
+</ParamField>
+
+### Behavior
+
+- Uses Minecraft's `PosRuleTest` system
+- Tests block positions relative to an anchor point
+- Useful for applying effects only in certain areas of a structure
+
+### Examples
+
+#### Height Range
+
+```json
+{
+  "type": "lithostitched:position",
+  "predicate": {
+    "type": "minecraft:axis_aligned_linear_pos",
+    "axis": "y",
+    "min_dist": 0,
+    "max_dist": 10
+  },
+  "anchor": "structure_start"
+}
+```
+
+Matches blocks within 10 blocks vertically from structure start.
+
+#### Radial Distance
+
+```json
+{
+  "type": "lithostitched:position",
+  "predicate": {
+    "type": "minecraft:linear_pos",
+    "min_dist": 5,
+    "max_dist": 15
+  },
+  "anchor": "piece"
+}
+```
+
+Matches blocks 5-15 blocks from the piece origin.
+
+---
+
+## Random Chance
+
+Randomly passes with a specified probability.
+
+### Type ID
+```
+lithostitched:random_chance
+```
+
+### Java Interface
+
+```java
+public record RandomChance(float chance) 
+    implements ProcessorCondition {
+    
+    @Override
+    public boolean test(WorldGenLevel level, Data data,
+                       StructurePlaceSettings settings, RandomSource random);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.processor.condition.RandomChance:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:random_chance",
+  "chance": 0.3
+}
+```
+
+### Fields
+
+<ParamField path="chance" type="float" required>
+  Probability of passing (0.0 to 1.0). 0.0 = never, 1.0 = always.
+</ParamField>
+
+### Behavior
+
+- Generates a random float between 0 and 1
+- Returns `true` if the random value is less than `chance`
+- Uses the `RandomSource` provided to the test method
+
+### Examples
+
+#### 50% Chance
+
+```json
+{
+  "type": "lithostitched:random_chance",
+  "chance": 0.5
+}
+```
+
+#### 10% Chance
+
+```json
+{
+  "type": "lithostitched:random_chance",
+  "chance": 0.1
+}
+```
+
+---
+
+## True
+
+Always returns `true`.
+
+### Type ID
+```
+lithostitched:true
+```
+
+### Java Interface
+
+```java
+public record True() implements ProcessorCondition {
+    @Override
+    public boolean test(WorldGenLevel level, Data data,
+                       StructurePlaceSettings settings, RandomSource random);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.processor.condition.True:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:true"
+}
+```
+
+### Behavior
+
+- Always returns `true`
+- Useful as a placeholder or default condition
+- Can be used to unconditionally execute a processor branch
+
+---
+
+## List Shorthand
+
+Processor conditions support a shorthand syntax where a list of conditions is automatically wrapped in `all_of`:
+
+```json
+[
+  {
+    "type": "lithostitched:random_chance",
+    "chance": 0.5
+  },
+  {
+    "type": "lithostitched:matching_blocks",
+    "blocks": "#minecraft:planks"
+  }
+]
+```
+
+This is equivalent to:
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:random_chance",
+      "chance": 0.5
+    },
+    {
+      "type": "lithostitched:matching_blocks",
+      "blocks": "#minecraft:planks"
+    }
+  ]
+}
+```
+
+Source: `ProcessorCondition.java:24`
+
+---
+
+## Usage with Condition Processor
+
+Processor conditions are primarily used with the [Condition Processor](/api/processors/condition):
+
+```json
+{
+  "processor_type": "lithostitched:condition",
+  "random_mode": {
+    "mode": "per_block"
+  },
+  "if_true": {
+    "type": "lithostitched:all_of",
+    "conditions": [
+      {
+        "type": "lithostitched:random_chance",
+        "chance": 0.2
+      },
+      {
+        "type": "lithostitched:matching_blocks",
+        "blocks": "#minecraft:planks",
+        "match_type": "input"
+      }
+    ]
+  },
+  "then": [
+    {
+      "processor_type": "minecraft:block_rot",
+      "integrity": 0.5
+    }
+  ],
+  "else": []
+}
+```
+
+This applies block decay only to planks with a 20% chance.
+
+## Complex Condition Examples
+
+### Weathering Based on Height and Block Type
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:position",
+      "predicate": {
+        "type": "minecraft:axis_aligned_linear_pos",
+        "axis": "y",
+        "min_dist": 10,
+        "max_dist": 999
+      },
+      "anchor": "structure_start"
+    },
+    {
+      "type": "lithostitched:matching_blocks",
+      "blocks": ["minecraft:copper_block"],
+      "match_type": "input"
+    },
+    {
+      "type": "lithostitched:random_chance",
+      "chance": 0.7
+    }
+  ]
+}
+```
+
+### Either Condition with Exclusions
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:any_of",
+      "conditions": [
+        {
+          "type": "lithostitched:matching_blocks",
+          "blocks": "#minecraft:logs",
+          "match_type": "input"
+        },
+        {
+          "type": "lithostitched:matching_blocks",
+          "blocks": "#minecraft:planks",
+          "match_type": "input"
+        }
+      ]
+    },
+    {
+      "type": "lithostitched:not",
+      "condition": {
+        "type": "lithostitched:matching_blocks",
+        "blocks": ["minecraft:water"],
+        "match_type": "location"
+      }
+    }
+  ]
+}
+```
+
+Matches logs or planks, but only if there's no water at the location.
+
+## Registration
+
+Processor conditions are registered in `Lithostitched.java:197-205`:
+
+```java
+public static void registerCommonProcessorConditions(
+    BiConsumer<String, MapCodec<? extends ProcessorCondition>> consumer
+) {
+    consumer.accept("all_of", AllOf.CODEC);
+    consumer.accept("any_of", AnyOf.CODEC);
+    consumer.accept("matching_blocks", MatchingBlocks.CODEC);
+    consumer.accept("not", Not.CODEC);
+    consumer.accept("position", Position.CODEC);
+    consumer.accept("random_chance", RandomChance.CODEC);
+    consumer.accept("true", True.CODEC);
+}
+```

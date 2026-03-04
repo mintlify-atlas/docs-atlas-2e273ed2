@@ -1,0 +1,782 @@
+---
+title: "Common Worldgen Patterns"
+description: "Common use cases, best practices, and proven patterns for Lithostitched worldgen customization"
+---
+
+This guide covers frequently used patterns and best practices for common worldgen customization tasks with Lithostitched.
+
+## Biome-Specific Surface Changes
+
+One of the most common tasks is changing surface blocks in specific biomes.
+
+### Simple Block Replacement
+
+Replace grass with a custom block in specific biomes:
+
+```json
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:sequence",
+    "sequence": [
+      {
+        "type": "minecraft:condition",
+        "if_true": {
+          "type": "minecraft:stone_depth",
+          "offset": 0,
+          "surface_type": "floor",
+          "add_surface_depth": false,
+          "secondary_depth_range": 0
+        },
+        "then_run": {
+          "type": "minecraft:condition",
+          "if_true": {
+            "type": "minecraft:biome",
+            "biome_is": ["your_namespace:custom_grassland"]
+          },
+          "then_run": {
+            "type": "minecraft:block",
+            "result_state": {
+              "Name": "your_namespace:custom_grass"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### Multi-Layer Surface
+
+Create custom surface layers with grass, dirt, and stone:
+
+```json
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:stone_depth",
+        "offset": 0,
+        "surface_type": "floor",
+        "add_surface_depth": false,
+        "secondary_depth_range": 0
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": {"Name": "minecraft:grass_block"}
+      }
+    },
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:stone_depth",
+        "offset": 0,
+        "surface_type": "floor",
+        "add_surface_depth": true,
+        "secondary_depth_range": 4
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": {"Name": "minecraft:dirt"}
+      }
+    },
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:stone_depth",
+        "offset": 0,
+        "surface_type": "floor",
+        "add_surface_depth": true,
+        "secondary_depth_range": 8
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": {"Name": "minecraft:stone"}
+      }
+    }
+  ]
+}
+```
+
+## Height-Based Generation
+
+Control what generates at different elevations.
+
+### Mountain Peaks
+
+Snow and ice above certain heights:
+
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "minecraft:y_above",
+    "anchor": {"absolute": 120},
+    "surface_depth_multiplier": 0,
+    "add_stone_depth": false
+  },
+  "then_run": {
+    "type": "minecraft:sequence",
+    "sequence": [
+      {
+        "type": "minecraft:condition",
+        "if_true": {
+          "type": "minecraft:stone_depth",
+          "offset": 0,
+          "surface_type": "floor",
+          "add_surface_depth": false,
+          "secondary_depth_range": 0
+        },
+        "then_run": {
+          "type": "minecraft:block",
+          "result_state": {"Name": "minecraft:snow_block"}
+        }
+      },
+      {
+        "type": "minecraft:block",
+        "result_state": {"Name": "minecraft:stone"}
+      }
+    ]
+  }
+}
+```
+
+### Underground Layers
+
+Different stone types at different depths:
+
+```json
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:y_above",
+        "anchor": {"absolute": -32},
+        "surface_depth_multiplier": 0,
+        "add_stone_depth": false
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": {"Name": "minecraft:stone"}
+      }
+    },
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:y_above",
+        "anchor": {"absolute": -64},
+        "surface_depth_multiplier": 0,
+        "add_stone_depth": false
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": {"Name": "minecraft:deepslate"}
+      }
+    }
+  ]
+}
+```
+
+## Adding Structures to Villages
+
+Extend vanilla villages with custom buildings.
+
+### Simple House Addition
+
+```json
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "template_pools": [
+    "minecraft:village/plains/houses",
+    "minecraft:village/savanna/houses",
+    "minecraft:village/desert/houses"
+  ],
+  "elements": [
+    {
+      "element": {
+        "location": "your_namespace:village/bakery",
+        "processors": "minecraft:empty",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 8
+    }
+  ]
+}
+```
+
+### Biome-Specific Buildings
+
+Add different variants per biome using processors:
+
+```json
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "template_pools": [
+    "minecraft:village/plains/houses"
+  ],
+  "elements": [
+    {
+      "element": {
+        "location": "your_namespace:village/universal_shop",
+        "processors": "your_namespace:village/plains_palette",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 10
+    }
+  ]
+}
+```
+
+The processor list swaps blocks to match the biome aesthetic.
+
+## Feature Decoration Stacking
+
+Add decorative features on top of existing generation.
+
+### Mushrooms on Trees
+
+```json
+{
+  "type": "lithostitched:stack_feature",
+  "base_features": [
+    "minecraft:fancy_oak",
+    "minecraft:oak"
+  ],
+  "stacked_feature": {
+    "feature": "minecraft:huge_brown_mushroom",
+    "placement": [
+      {
+        "type": "minecraft:count",
+        "count": {
+          "type": "minecraft:uniform",
+          "min_inclusive": 0,
+          "max_inclusive": 2
+        }
+      },
+      {
+        "type": "minecraft:in_square"
+      },
+      {
+        "type": "minecraft:heightmap",
+        "heightmap": "WORLD_SURFACE_WG"
+      },
+      {
+        "type": "minecraft:biome"
+      }
+    ]
+  },
+  "placement_type": "cancel_on_failure"
+}
+```
+
+### Ore Vein Decoration
+
+Add crystal clusters near ore veins:
+
+```json
+{
+  "type": "lithostitched:stack_feature",
+  "base_features": "#your_namespace:crystal_ores",
+  "stacked_feature": {
+    "feature": "your_namespace:crystal_cluster",
+    "placement": [
+      {
+        "type": "minecraft:count",
+        "count": 3
+      },
+      {
+        "type": "minecraft:random_offset",
+        "xz_spread": 4,
+        "y_spread": 2
+      }
+    ]
+  },
+  "placement_type": "never_cancel"
+}
+```
+
+## Structure Processor Patterns
+
+### Weathering and Decay
+
+Randomly replace blocks with weathered variants:
+
+```json
+{
+  "processors": [
+    {
+      "processor_type": "minecraft:rule",
+      "rules": [
+        {
+          "input_predicate": {
+            "block": "minecraft:stone_bricks",
+            "predicate_type": "minecraft:random_block_match",
+            "probability": 0.2
+          },
+          "location_predicate": {
+            "predicate_type": "minecraft:always_true"
+          },
+          "output_state": {"Name": "minecraft:cracked_stone_bricks"}
+        },
+        {
+          "input_predicate": {
+            "block": "minecraft:stone_bricks",
+            "predicate_type": "minecraft:random_block_match",
+            "probability": 0.15
+          },
+          "location_predicate": {
+            "predicate_type": "minecraft:always_true"
+          },
+          "output_state": {"Name": "minecraft:mossy_stone_bricks"}
+        },
+        {
+          "input_predicate": {
+            "block": "minecraft:cobblestone",
+            "predicate_type": "minecraft:random_block_match",
+            "probability": 0.25
+          },
+          "location_predicate": {
+            "predicate_type": "minecraft:always_true"
+          },
+          "output_state": {"Name": "minecraft:mossy_cobblestone"}
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Material Palette Swapping
+
+Change all wood types in a structure:
+
+```json
+{
+  "processors": [
+    {
+      "processor_type": "lithostitched:block_swap",
+      "blocks": {
+        "minecraft:oak_planks": "minecraft:dark_oak_planks",
+        "minecraft:oak_stairs": "minecraft:dark_oak_stairs",
+        "minecraft:oak_slab": "minecraft:dark_oak_slab",
+        "minecraft:oak_fence": "minecraft:dark_oak_fence",
+        "minecraft:oak_fence_gate": "minecraft:dark_oak_fence_gate",
+        "minecraft:oak_door": "minecraft:dark_oak_door",
+        "minecraft:oak_trapdoor": "minecraft:dark_oak_trapdoor",
+        "minecraft:oak_log": "minecraft:dark_oak_log",
+        "minecraft:oak_wood": "minecraft:dark_oak_wood"
+      }
+    }
+  ]
+}
+```
+
+### Random Palette Selection
+
+Create variety by randomly choosing from multiple palettes:
+
+```json
+{
+  "processors": [
+    {
+      "processor_type": "lithostitched:apply_random",
+      "mode": "per_piece",
+      "processor_lists": "#your_namespace:house_palettes"
+    }
+  ]
+}
+```
+
+Tag definition:
+```json
+{
+  "values": [
+    "your_namespace:palette/oak",
+    "your_namespace:palette/spruce",
+    "your_namespace:palette/birch",
+    "your_namespace:palette/dark_oak"
+  ]
+}
+```
+
+## Noise-Based Variation
+
+Use noise to create natural-looking variation.
+
+### Patchy Ground Cover
+
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "minecraft:noise_threshold",
+    "noise": "minecraft:surface",
+    "min_threshold": -0.3,
+    "max_threshold": 0.3
+  },
+  "then_run": {
+    "type": "minecraft:block",
+    "result_state": {"Name": "minecraft:coarse_dirt"}
+  }
+}
+```
+
+### Gradual Biome Transitions
+
+```json
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:noise_threshold",
+        "noise": "minecraft:surface",
+        "min_threshold": 0.5,
+        "max_threshold": 1.0
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": {"Name": "minecraft:sand"}
+      }
+    },
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:noise_threshold",
+        "noise": "minecraft:surface",
+        "min_threshold": -1.0,
+        "max_threshold": -0.5
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": {"Name": "minecraft:gravel"}
+      }
+    },
+    {
+      "type": "minecraft:block",
+      "result_state": {"Name": "minecraft:grass_block"}
+    }
+  ]
+}
+```
+
+## Custom Ore Distribution
+
+While vanilla ore placement works well, you can create custom patterns.
+
+### Clustered Rare Ores
+
+```json
+{
+  "type": "lithostitched:stack_feature",
+  "base_features": ["your_namespace:rare_ore_small"],
+  "stacked_feature": {
+    "feature": "your_namespace:rare_ore_large",
+    "placement": [
+      {
+        "type": "minecraft:rarity_filter",
+        "chance": 10
+      },
+      {
+        "type": "minecraft:count",
+        "count": {
+          "type": "minecraft:uniform",
+          "min_inclusive": 2,
+          "max_inclusive": 5
+        }
+      },
+      {
+        "type": "minecraft:random_offset",
+        "xz_spread": 8,
+        "y_spread": 4
+      }
+    ]
+  },
+  "placement_type": "cancel_on_success"
+}
+```
+
+### Height-Stratified Ores
+
+Use different ore configurations at different heights with multiple modifiers:
+
+```json
+// Deep ores
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "minecraft:vertical_gradient",
+      "random_name": "deep_ore_zone",
+      "true_at_and_below": -64,
+      "false_at_and_above": -32
+    },
+    "then_run": {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:noise_threshold",
+        "noise": "minecraft:ore_veininess",
+        "min_threshold": 0.7,
+        "max_threshold": 1.0
+      },
+      "then_run": {
+        "type": "minecraft:block",
+        "result_state": {"Name": "your_namespace:deep_ore"}
+      }
+    }
+  }
+}
+```
+
+## Conditional Structure Spawning
+
+Control when and where structures can spawn.
+
+### Altitude Requirements
+
+```json
+{
+  "type": "lithostitched:set_structure_spawn_condition",
+  "structures": ["your_namespace:sky_temple"],
+  "spawn_condition": {
+    "type": "lithostitched:y_range",
+    "min": 120,
+    "max": 256
+  },
+  "append": false
+}
+```
+
+### Multiple Conditions
+
+Combine conditions for precise control:
+
+```json
+{
+  "type": "lithostitched:set_structure_spawn_condition",
+  "structures": ["your_namespace:ocean_monument_variant"],
+  "spawn_condition": {
+    "type": "lithostitched:all_of",
+    "conditions": [
+      {
+        "type": "lithostitched:y_range",
+        "min": -64,
+        "max": 40
+      },
+      {
+        "type": "lithostitched:biome",
+        "biomes": "#minecraft:is_ocean"
+      }
+    ]
+  },
+  "append": false
+}
+```
+
+## Optimization Patterns
+
+### Use Tags Instead of Lists
+
+**Bad:**
+```json
+"template_pools": [
+  "minecraft:village/plains/houses",
+  "minecraft:village/savanna/houses",
+  "minecraft:village/desert/houses",
+  "minecraft:village/taiga/houses",
+  "minecraft:village/snowy/houses"
+]
+```
+
+**Good:**
+```json
+"template_pools": "#your_namespace:all_village_houses"
+```
+
+### Priority Organization
+
+Structure your modifiers with clear priorities:
+
+- **0-500**: Critical foundation changes (dimension noise, basic terrain)
+- **500-1000**: Major modifications (surface rules, large features)
+- **1000-1500**: Standard additions (structures, decorations)
+- **1500-2000**: Refinements (small features, tweaks)
+- **2000+**: Removals and cleanup
+
+### Conditional Execution
+
+Only apply modifiers when necessary:
+
+```json
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:biome",
+        "biome_is": "#your_namespace:custom_surface_biomes"
+      },
+      "then_run": {
+        "type": "minecraft:sequence",
+        "sequence": [/* expensive operations */]
+      }
+    }
+  ]
+}
+```
+
+## Testing Patterns
+
+### Isolated Testing
+
+Create test-specific modifiers:
+
+```json
+// test_surface_rule.json
+{
+  "type": "lithostitched:add_surface_rule",
+  "priority": 1,
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "minecraft:biome",
+      "biome_is": ["minecraft:plains"]
+    },
+    "then_run": {
+      "type": "minecraft:block",
+      "result_state": {"Name": "minecraft:gold_block"}
+    }
+  }
+}
+```
+
+This makes changes very obvious for testing.
+
+### Gradual Rollout
+
+Test modifiers on single biome before expanding:
+
+1. Apply to one test biome
+2. Verify behavior
+3. Expand to biome tag
+4. Full deployment
+
+## Common Mistakes to Avoid
+
+<AccordionGroup>
+  <Accordion title="Forgetting surface_type conditions">
+    Always check `surface_type` in stone_depth predicates:
+    ```json
+    {
+      "type": "minecraft:stone_depth",
+      "offset": 0,
+      "surface_type": "floor",  // Don't forget this!
+      "add_surface_depth": false,
+      "secondary_depth_range": 0
+    }
+    ```
+    Without this, blocks may appear on ceilings too.
+  </Accordion>
+
+  <Accordion title="Incorrect sequence order">
+    Surface rules execute in order - most specific first:
+    ```json
+    "sequence": [
+      {/* Specific case */},
+      {/* General case */},
+      {/* Fallback */}
+    ]
+    ```
+  </Accordion>
+
+  <Accordion title="Over-weighting rare structures">
+    Structure weights are relative. A weight of 1 among others with weight 1 means 50/50:
+    - Common: 15-25
+    - Uncommon: 8-15
+    - Rare: 3-8
+    - Very rare: 1-3
+  </Accordion>
+
+  <Accordion title="Not testing edge cases">
+    Test at:
+    - Biome boundaries
+    - Height limits (y=-64, y=320)
+    - Chunk borders
+    - With other mods active
+  </Accordion>
+</AccordionGroup>
+
+## Integration Patterns
+
+### Multiple Datapacks
+
+When working with multiple datapacks:
+
+1. Use distinct priority ranges per pack
+2. Document dependencies
+3. Use tags for cross-pack references
+4. Test combinations thoroughly
+
+### Mod Compatibility
+
+Ensure compatibility with other mods:
+
+1. Use append mode when modifying structures
+2. Avoid hardcoded block IDs from other mods
+3. Use predicates that work with modded content
+4. Test with popular worldgen mods
+
+## Documentation Templates
+
+Document your modifiers:
+
+```markdown
+## Modifier: custom_desert_surface
+
+**File:** `data/namespace/lithostitched/worldgen_modifier/custom_desert_surface.json`
+
+**Purpose:** Replaces desert sand with red sand in custom desert biomes
+
+**Priority:** 1000
+
+**Affects:** 
+- Biomes: `#namespace:red_deserts`
+- Dimensions: Overworld
+
+**Dependencies:** None
+
+**Conflicts:** May conflict with other desert surface modifiers
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Adding Modifiers" href="/guides/adding-modifiers" icon="plus">
+    Complete guide to creating worldgen modifiers
+  </Card>
+
+  <Card title="Custom Structures" href="/guides/custom-structures" icon="building">
+    Learn structure creation in detail
+  </Card>
+
+  <Card title="Bandlands Terrain" href="/guides/bandlands-terrain" icon="layer-group">
+    Create banded terrain patterns
+  </Card>
+
+  <Card title="API Reference" href="/api/modifiers/overview" icon="book">
+    Complete API documentation
+  </Card>
+</CardGroup>

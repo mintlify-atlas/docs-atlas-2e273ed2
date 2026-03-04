@@ -1,0 +1,312 @@
+---
+title: Pool Elements
+description: Extended structure pool element types for advanced structure generation
+---
+
+Pool elements define individual pieces that can be selected from template pools. Lithostitched extends vanilla pool elements with additional features through the delegating system.
+
+## Element Types
+
+### Vanilla Pool Elements
+
+All vanilla pool element types work seamlessly with Lithostitched:
+
+<AccordionGroup>
+  <Accordion title="minecraft:single_pool_element">
+    Places a single structure template.
+    
+    ```json
+    {
+      "element_type": "minecraft:single_pool_element",
+      "location": "mymod:dungeon/hallway",
+      "processors": "mymod:dungeon_processors",
+      "projection": "rigid"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="minecraft:list_pool_element">
+    Places multiple elements as a single unit.
+    
+    ```json
+    {
+      "element_type": "minecraft:list_pool_element",
+      "elements": [
+        {
+          "element_type": "minecraft:single_pool_element",
+          "location": "mymod:tower/base",
+          "processors": "minecraft:empty",
+          "projection": "rigid"
+        },
+        {
+          "element_type": "minecraft:single_pool_element",
+          "location": "mymod:tower/top",
+          "processors": "minecraft:empty",
+          "projection": "rigid"
+        }
+      ],
+      "projection": "rigid"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="minecraft:feature_pool_element">
+    Places a configured feature instead of a structure template.
+    
+    ```json
+    {
+      "element_type": "minecraft:feature_pool_element",
+      "feature": "mymod:custom_tree",
+      "projection": "terrain_matching"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="minecraft:empty_pool_element">
+    A placeholder that places nothing.
+    
+    ```json
+    {
+      "element_type": "minecraft:empty_pool_element"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Lithostitched: Delegating Element
+
+The `lithostitched:delegating` element type wraps any vanilla element and adds advanced features. See [Template Pools](/api/structures/template-pools#delegatingpoolelement) for full documentation.
+
+## Projection Types
+
+Projection determines how structures adapt to terrain:
+
+<ParamField path="projection" type="string" required>
+  <Expandable title="Available Values">
+    <ResponseField name="rigid" type="string">
+      Structure maintains exact shape and position. No terrain adaptation.
+    </ResponseField>
+    
+    <ResponseField name="terrain_matching" type="string">
+      Bottom of structure aligns with terrain surface. Used for surface structures like villages.
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+## Advanced Element Patterns
+
+### GuaranteedPoolElement Pattern
+
+Use `forced_count` to guarantee element placement:
+
+```json
+{
+  "type": "lithostitched:delegating",
+  "delegate": {
+    "element_type": "minecraft:single_pool_element",
+    "location": "mymod:dungeon/entrance",
+    "processors": "minecraft:empty",
+    "projection": "rigid"
+  },
+  "forced_count": 1,
+  "allowed_depth": [0, 0],
+  "name": "mymod:guaranteed_entrance"
+}
+```
+
+This creates an entrance that:
+- Always appears exactly once (`forced_count: 1`)
+- Only spawns at depth 0 (`allowed_depth: [0, 0]`)
+- Has high priority during shuffling
+
+### LimitedPoolElement Pattern
+
+Restrict element occurrences with `max_count`:
+
+```json
+{
+  "type": "lithostitched:delegating",
+  "delegate": {
+    "element_type": "minecraft:single_pool_element",
+    "location": "mymod:dungeon/treasure_vault",
+    "processors": "mymod:treasure_processors",
+    "projection": "rigid"
+  },
+  "max_count": 2,
+  "allowed_depth": [2, 10]
+}
+```
+
+This limits treasure vaults to:
+- Maximum 2 instances per structure
+- Only spawns at depths 2-10
+
+### Depth-Restricted Elements
+
+Create progression through depth restrictions:
+
+```json
+{
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 10,
+      "element": {
+        "type": "lithostitched:delegating",
+        "delegate": { /* entrance room */ },
+        "allowed_depth": [0, 1],
+        "name": "mymod:entrance_tier"
+      }
+    },
+    {
+      "weight": 10,
+      "element": {
+        "type": "lithostitched:delegating",
+        "delegate": { /* mid room */ },
+        "allowed_depth": [2, 4],
+        "name": "mymod:mid_tier"
+      }
+    },
+    {
+      "weight": 10,
+      "element": {
+        "type": "lithostitched:delegating",
+        "delegate": { /* deep room */ },
+        "allowed_depth": [5, 100],
+        "name": "mymod:deep_tier"
+      }
+    }
+  ]
+}
+```
+
+### Conditional Spawning
+
+Combine placement conditions with pool elements:
+
+```json
+{
+  "type": "lithostitched:delegating",
+  "delegate": {
+    "element_type": "minecraft:single_pool_element",
+    "location": "mymod:ice_cave/frozen_chamber",
+    "processors": "mymod:ice_processors",
+    "projection": "rigid"
+  },
+  "condition": {
+    "type": "lithostitched:all_of",
+    "conditions": [
+      {
+        "type": "lithostitched:in_biome",
+        "biomes": "#minecraft:is_mountain"
+      },
+      {
+        "type": "lithostitched:height_filter",
+        "min_inclusive": 100
+      }
+    ]
+  },
+  "max_count": 1
+}
+```
+
+## Element Weighting
+
+Elements are weighted within template pools to control selection probability:
+
+```json
+{
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 20,
+      "element": { /* common room - 20/30 = 66% chance */ }
+    },
+    {
+      "weight": 8,
+      "element": { /* uncommon room - 8/30 = 27% chance */ }
+    },
+    {
+      "weight": 2,
+      "element": { /* rare room - 2/30 = 7% chance */ }
+    }
+  ]
+}
+```
+
+<Note>
+Weights affect the shuffling algorithm probability, but don't guarantee exact ratios due to depth restrictions, max counts, and conditions.
+</Note>
+
+## Processors in Elements
+
+Every pool element can reference a processor list:
+
+```json
+{
+  "element_type": "minecraft:single_pool_element",
+  "location": "mymod:ruin/temple",
+  "processors": "mymod:weathering_processors",
+  "projection": "terrain_matching"
+}
+```
+
+Processors transform blocks during placement. See [Processors](/api/structures/processors) for details.
+
+## Java Interface
+
+The `DelegatingPoolElement` class wraps vanilla elements:
+
+```java
+public class DelegatingPoolElement extends StructurePoolElement {
+    protected final DelegatingConfig config;
+    
+    // Delegates all methods to wrapped element
+    public StructurePoolElement delegate() {
+        return this.config.delegate();
+    }
+    
+    // Additional features
+    public Optional<Integer> minDepth();
+    public boolean prioritized();
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/poolelement/DelegatingPoolElement.java:22`
+
+## Configuration Reference
+
+The `DelegatingConfig` record defines all available options:
+
+```java
+public record DelegatingConfig(
+    StructurePoolElement delegate,
+    Optional<Identifier> name,
+    Optional<PlacementCondition> placementCondition,
+    Optional<InclusiveRange<Integer>> allowedDepth,
+    Optional<Integer> forcedCount,
+    Optional<Integer> maxCount,
+    boolean allowBoundingBoxCollisions,
+    boolean otherPiecesCanIntersect,
+    Optional<TerrainAdjustment> overrideTerrainAdaption
+)
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/poolelement/DelegatingConfig.java:27`
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Template Pools" icon="layer-group" href="/api/structures/template-pools">
+    Complete pool configuration
+  </Card>
+  <Card title="Processors" icon="wand-magic-sparkles" href="/api/structures/processors">
+    Transform blocks in elements
+  </Card>
+  <Card title="Placement Conditions" icon="filter" href="/api/features/placement-conditions">
+    Control element spawning
+  </Card>
+  <Card title="Structure Types" icon="building" href="/api/structures/template-pools">
+    Structure generation systems
+  </Card>
+</CardGroup>

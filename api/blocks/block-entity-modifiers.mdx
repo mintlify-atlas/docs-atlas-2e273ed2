@@ -1,0 +1,301 @@
+---
+title: Block Entity Modifiers
+description: Modifiers for customizing block entity NBT data in structures
+---
+
+Block entity modifiers allow you to modify the NBT data of block entities when structures are placed. They are part of Minecraft's structure processing system and can be used in processing rules.
+
+## Apply All
+
+Applies multiple block entity modifiers sequentially.
+
+### Type ID
+```
+lithostitched:apply_all
+```
+
+### Java Interface
+
+```java
+public record ApplyAll(List<RuleBlockEntityModifier> modifiers) 
+    implements RuleBlockEntityModifier {
+    
+    @Override
+    public CompoundTag apply(RandomSource randomSource, CompoundTag compoundTag);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.blockentitymodifier.ApplyAll:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:apply_all",
+  "modifiers": [
+    {
+      "type": "minecraft:append_static",
+      "data": {
+        "Items": []
+      }
+    },
+    {
+      "type": "minecraft:append_loot",
+      "loot_table": "minecraft:chests/simple_dungeon"
+    }
+  ]
+}
+```
+
+### Fields
+
+<ParamField path="modifiers" type="array" required>
+  List of block entity modifiers to apply in order
+</ParamField>
+
+### Behavior
+
+- Applies each modifier in the list sequentially
+- Each modifier receives the NBT tag output from the previous modifier
+- If any modifier returns `null`, it is passed to the next modifier
+- Returns the final modified NBT tag after all modifiers have been applied
+- Useful for combining multiple NBT modifications
+
+### Example: Initialize and Populate Chest
+
+```json
+{
+  "type": "lithostitched:apply_all",
+  "modifiers": [
+    {
+      "type": "minecraft:clear"
+    },
+    {
+      "type": "minecraft:append_static",
+      "data": {
+        "CustomName": "{\"text\":\"Treasure Chest\"}"
+      }
+    },
+    {
+      "type": "minecraft:append_loot",
+      "loot_table": "minecraft:chests/buried_treasure"
+    }
+  ]
+}
+```
+
+This clears the chest, sets a custom name, then fills it with loot.
+
+---
+
+## Apply Random
+
+Randomly selects and applies one block entity modifier from a weighted list.
+
+### Type ID
+```
+lithostitched:apply_random
+```
+
+### Java Interface
+
+```java
+public record ApplyRandom(WeightedList<RuleBlockEntityModifier> modifiers) 
+    implements RuleBlockEntityModifier {
+    
+    @Override
+    public CompoundTag apply(RandomSource randomSource, CompoundTag compoundTag);
+}
+```
+
+Source: `dev.worldgen.lithostitched.worldgen.blockentitymodifier.ApplyRandom:1`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:apply_random",
+  "modifiers": [
+    {
+      "data": {
+        "type": "minecraft:append_loot",
+        "loot_table": "minecraft:chests/simple_dungeon"
+      },
+      "weight": 3
+    },
+    {
+      "data": {
+        "type": "minecraft:append_loot",
+        "loot_table": "minecraft:chests/abandoned_mineshaft"
+      },
+      "weight": 1
+    }
+  ]
+}
+```
+
+### Fields
+
+<ParamField path="modifiers" type="array" required>
+  Weighted list of block entity modifiers
+  
+  <Expandable title="Entry Structure">
+    <ParamField path="data" type="RuleBlockEntityModifier" required>
+      The block entity modifier to use when selected
+    </ParamField>
+    
+    <ParamField path="weight" type="integer" required>
+      Weight of this entry (must be >= 0). Higher weights increase selection probability.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Behavior
+
+- Randomly selects one modifier based on weights
+- Applies only the selected modifier
+- If no modifier is selected (empty list or zero total weight), returns the input tag unchanged
+- Uses the provided `RandomSource` for selection
+
+### Example: Random Loot Tables
+
+```json
+{
+  "type": "lithostitched:apply_random",
+  "modifiers": [
+    {
+      "data": {
+        "type": "minecraft:append_loot",
+        "loot_table": "minecraft:chests/simple_dungeon"
+      },
+      "weight": 5
+    },
+    {
+      "data": {
+        "type": "minecraft:append_loot",
+        "loot_table": "minecraft:chests/abandoned_mineshaft"
+      },
+      "weight": 3
+    },
+    {
+      "data": {
+        "type": "minecraft:append_loot",
+        "loot_table": "minecraft:chests/desert_pyramid"
+      },
+      "weight": 2
+    }
+  ]
+}
+```
+
+50% dungeon loot, 30% mineshaft loot, 20% pyramid loot.
+
+---
+
+## Usage in Processing Rules
+
+Block entity modifiers are used in structure processor processing rules:
+
+```json
+{
+  "processor_type": "minecraft:rule",
+  "rules": [
+    {
+      "block_entity_modifier": {
+        "type": "lithostitched:apply_random",
+        "modifiers": [
+          {
+            "data": {
+              "type": "minecraft:append_loot",
+              "loot_table": "minecraft:chests/shipwreck_supply"
+            },
+            "weight": 1
+          },
+          {
+            "data": {
+              "type": "minecraft:append_loot",
+              "loot_table": "minecraft:chests/shipwreck_treasure"
+            },
+            "weight": 1
+          }
+        ]
+      },
+      "input_predicate": {
+        "block": "minecraft:chest",
+        "predicate_type": "minecraft:block_match"
+      },
+      "location_predicate": {
+        "predicate_type": "minecraft:always_true"
+      },
+      "output_state": {
+        "Name": "minecraft:chest",
+        "Properties": {
+          "waterlogged": "true"
+        }
+      }
+    }
+  ]
+}
+```
+
+## Combining Both Modifiers
+
+```json
+{
+  "type": "lithostitched:apply_all",
+  "modifiers": [
+    {
+      "type": "minecraft:clear"
+    },
+    {
+      "type": "lithostitched:apply_random",
+      "modifiers": [
+        {
+          "data": {
+            "type": "minecraft:append_loot",
+            "loot_table": "mymod:chests/variant_a"
+          },
+          "weight": 1
+        },
+        {
+          "data": {
+            "type": "minecraft:append_loot",
+            "loot_table": "mymod:chests/variant_b"
+          },
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "type": "minecraft:append_static",
+      "data": {
+        "LootTableSeed": 0
+      }
+    }
+  ]
+}
+```
+
+This clears the chest, randomly selects a loot table, then sets a seed.
+
+## Common Vanilla Modifiers
+
+Lithostitched's modifiers work alongside Minecraft's built-in modifiers:
+
+- `minecraft:append_static` - Adds static NBT data
+- `minecraft:append_loot` - Adds a loot table
+- `minecraft:clear` - Clears all NBT data
+- `minecraft:passthrough` - Returns the input unchanged
+
+## Registration
+
+Block entity modifiers are registered in `Lithostitched.java:207-210`:
+
+```java
+public static void registerCommonBlockEntityModifiers(
+    BiConsumer<String, RuleBlockEntityModifierType<?>> consumer
+) {
+    consumer.accept("apply_all", ApplyAll.TYPE);
+    consumer.accept("apply_random", ApplyRandom.TYPE);
+}
+```

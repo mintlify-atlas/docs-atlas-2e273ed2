@@ -1,97 +1,260 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: Lithostitched Documentation
+description: Data-driven worldgen configuration and compatibility for Minecraft
+mode: custom
 ---
 
-## Setting up
+<div className="relative overflow-hidden bg-gradient-to-br from-[#121826] via-[#17221f] to-[#0f1117] dark:from-[#121826] dark:via-[#17221f] dark:to-[#0f1117] py-20">
+  <div className="max-w-6xl mx-auto px-6 lg:px-8">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white dark:text-white mb-6">
+          Build dynamic Minecraft worlds with Lithostitched
+        </h1>
+        <p className="text-lg sm:text-xl text-gray-300 dark:text-gray-300 max-w-2xl mb-8">
+          A powerful library mod that brings data-driven worldgen modifiers, custom terrain systems, and enhanced structure configuration to Minecraft. Cross-loader compatible with Fabric and NeoForge.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a
+            href="/quickstart"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold text-black bg-[#04ac5c] hover:bg-[#1fd56c] transition-colors no-underline"
+          >
+            Get started
+          </a>
+          <a
+            href="/api/modifiers/overview"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold text-white border border-white/30 bg-white/10 hover:bg-white/20 hover:border-white/40 transition-colors no-underline"
+          >
+            Explore API
+          </a>
+        </div>
+      </div>
+      <div className="lg:col-span-5 hidden lg:block">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#04ac5c]/20 to-[#1fd56c]/10 blur-3xl rounded-full"></div>
+          <div className="relative bg-[#1a1d27] dark:bg-[#1a1d27] border border-[#27272a] dark:border-[#27272a] rounded-2xl p-6">
+            <div className="text-sm text-gray-400 dark:text-gray-400 mb-2 font-mono">worldgen_modifier.json</div>
+            <pre className="text-sm text-gray-200 dark:text-gray-200 font-mono overflow-x-auto"><code>{`{
+  "type": "lithostitched:add_surface_rule",
+  "priority": 1000,
+  "surface_rule": {
+    "type": "lithostitched:bandlands",
+    "bands": [...]
+  }
+}`}</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Quick start
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get Lithostitched integrated into your Minecraft mod in minutes
+  </p>
+  
+  <Steps>
+    <Step title="Add the dependency">
+      Add Lithostitched to your mod's dependencies. For Fabric, add to your `build.gradle`:
+      
+      ```groovy gradle
+      repositories {
+          maven { url "https://api.modrinth.com/maven" }
+      }
+      
+      dependencies {
+          modImplementation "maven.modrinth:lithostitched:1.5.8+beta1"
+      }
+      ```
+      
+      <Accordion title="NeoForge setup">
+        For NeoForge, use the same repository and adjust the dependency configuration:
+        
+        ```groovy gradle
+        implementation fg.deobf("maven.modrinth:lithostitched:1.5.8+beta1")
+        ```
+      </Accordion>
+    </Step>
+    
+    <Step title="Create a worldgen modifier">
+      Create a JSON file in your mod's data directory at `data/yourmod/lithostitched/worldgen_modifier/example.json`:
+      
+      ```json
+      {
+        "type": "lithostitched:add_template_pool_elements",
+        "priority": 1000,
+        "target_pool": "minecraft:village/plains/houses",
+        "elements": [
+          {
+            "element": {
+              "location": "yourmod:village/plains/custom_house",
+              "processors": "minecraft:empty",
+              "projection": "rigid"
+            },
+            "weight": 5
+          }
+        ]
+      }
+      ```
+      
+      This modifier adds a custom house to Plains village structure pools.
+    </Step>
+    
+    <Step title="Test in-game">
+      Launch Minecraft with your mod and create a new world. Your worldgen modifications will automatically be applied. Use `/locate structure minecraft:village_plains` to find a village and see your changes.
+      
+      <Note>
+        Worldgen modifiers are loaded during world initialization. Changes won't affect existing chunks—create a new world or explore ungenerated terrain.
+      </Note>
+    </Step>
+  </Steps>
+</div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Explore by feature
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Discover what you can build with Lithostitched
+  </p>
+  
+  <CardGroup cols={2}>
     <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+      title="Worldgen modifiers"
+      icon="wand-magic-sparkles"
+      href="/api/modifiers/overview"
+    >
+      Add, modify, and configure structures, terrain, and features through data-driven JSON modifiers
+    </Card>
+    <Card
+      title="Bandlands terrain"
+      icon="layer-group"
+      href="/api/surface/bandlands"
+    >
+      Create custom banded terrain like Mesa biomes with configurable layers and patterns
+    </Card>
+    <Card
+      title="Structure templates"
+      icon="building"
+      href="/api/structures/template-pools"
+    >
+      Enhanced template pool system with aliases, delegation, and advanced pool element types
+    </Card>
+    <Card
+      title="Custom features"
+      icon="tree"
+      href="/api/features/feature-types"
+    >
+      Dungeons, ore generation, dripstone caves, wells, and composite feature systems
+    </Card>
+    <Card
+      title="Placement control"
+      icon="location-dot"
+      href="/api/features/placement-modifiers"
+    >
+      Fine-grained control over where features generate with conditions and modifiers
+    </Card>
+    <Card
+      title="Block processors"
+      icon="cubes"
+      href="/api/structures/processors"
+    >
+      Transform blocks in structures with conditional logic and advanced processing rules
+    </Card>
+  </CardGroup>
+</div>
 
-## Create beautiful pages
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Core concepts
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Learn the fundamentals of Lithostitched's architecture
+  </p>
+  
+  <CardGroup cols={3}>
+    <Card
+      title="Modifier system"
+      icon="gear"
+      href="/concepts/modifiers"
+    >
+      How worldgen modifiers work and how to use them effectively
+    </Card>
+    <Card
+      title="Registry system"
+      icon="database"
+      href="/concepts/registry-system"
+    >
+      Understanding Lithostitched's custom registries and types
+    </Card>
+    <Card
+      title="Data-driven config"
+      icon="file-code"
+      href="/concepts/data-driven-config"
+    >
+      Using JSON to configure worldgen without code changes
+    </Card>
+  </CardGroup>
+</div>
 
-Everything you need to create world-class documentation.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Resources
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Community and development resources
+  </p>
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <a
+      href="https://github.com/Apollounknowndev/lithostitched"
+      className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27] p-6 hover:border-[#04ac5c] dark:hover:border-[#04ac5c] transition-colors no-underline"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">GitHub Repository</h3>
+        <svg className="w-4 h-4 text-gray-400 group-hover:text-[#04ac5c] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        Browse source code, report issues, and contribute to development
+      </p>
+    </a>
+    
+    <a
+      href="https://modrinth.com/mod/lithostitched"
+      className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#1a1d27] p-6 hover:border-[#04ac5c] dark:hover:border-[#04ac5c] transition-colors no-underline"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">Modrinth Page</h3>
+        <svg className="w-4 h-4 text-gray-400 group-hover:text-[#04ac5c] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        Download the latest release and view version history
+      </p>
+    </a>
+  </div>
+</div>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<div className="mt-20 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-gradient-to-br from-gray-50 to-white dark:from-[#1a1d27] dark:to-[#242838] p-8 sm:p-12">
+    <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+      Ready to enhance your worldgen?
+    </h2>
+    <p className="text-base text-gray-600 dark:text-gray-400 mb-6 max-w-2xl">
+      Join mod developers using Lithostitched to create dynamic, data-driven Minecraft worlds with powerful customization and cross-loader compatibility.
+    </p>
+    <a
+      href="/installation"
+      className="inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold text-black bg-[#04ac5c] hover:bg-[#1fd56c] transition-colors no-underline"
+    >
+      Install Lithostitched
+    </a>
+  </div>
+</div>

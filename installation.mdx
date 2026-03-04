@@ -1,0 +1,245 @@
+---
+title: Installation
+description: Add Lithostitched to your Minecraft mod development environment
+---
+
+Lithostitched is a library mod that you include as a dependency in your Minecraft mod project. Follow the steps below for your mod loader.
+
+## Prerequisites
+
+Before installing Lithostitched, ensure you have:
+
+- Java Development Kit (JDK) 21 or higher
+- A Minecraft mod development environment (Fabric or NeoForge)
+- Gradle 8.0 or higher
+- Minecraft 1.21.1 or 1.21.11
+
+## Fabric Installation
+
+### Step 1: Add the Repository
+
+Add the Modrinth Maven repository to your `build.gradle` or `build.gradle.kts`:
+
+<CodeGroup>
+
+```kotlin build.gradle.kts
+repositories {
+    maven {
+        name = "Modrinth"
+        url = uri("https://api.modrinth.com/maven")
+    }
+}
+```
+
+```groovy build.gradle
+repositories {
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+    }
+}
+```
+
+</CodeGroup>
+
+### Step 2: Add the Dependency
+
+Add Lithostitched to your dependencies:
+
+<CodeGroup>
+
+```kotlin build.gradle.kts
+dependencies {
+    // Lithostitched for Fabric 1.21.1
+    modImplementation("maven.modrinth:lithostitched:1.5.8+beta1-fabric-1.21.1")
+    
+    // Or for Fabric 1.21.11
+    // modImplementation("maven.modrinth:lithostitched:1.5.8+beta1-fabric-1.21.11")
+}
+```
+
+```groovy build.gradle
+dependencies {
+    // Lithostitched for Fabric 1.21.1
+    modImplementation "maven.modrinth:lithostitched:1.5.8+beta1-fabric-1.21.1"
+    
+    // Or for Fabric 1.21.11
+    // modImplementation "maven.modrinth:lithostitched:1.5.8+beta1-fabric-1.21.11"
+}
+```
+
+</CodeGroup>
+
+### Step 3: Declare the Dependency
+
+Add Lithostitched as a dependency in your `fabric.mod.json`:
+
+```json fabric.mod.json
+{
+  "id": "your_mod_id",
+  "version": "1.0.0",
+  "depends": {
+    "fabricloader": ">=0.18.2",
+    "minecraft": "1.21.1",
+    "lithostitched": ">=1.5.8+beta1"
+  }
+}
+```
+
+## NeoForge Installation
+
+### Step 1: Add the Repository
+
+Add the Modrinth Maven repository to your `build.gradle` or `build.gradle.kts`:
+
+<CodeGroup>
+
+```kotlin build.gradle.kts
+repositories {
+    maven {
+        name = "Modrinth"
+        url = uri("https://api.modrinth.com/maven")
+    }
+}
+```
+
+```groovy build.gradle
+repositories {
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+    }
+}
+```
+
+</CodeGroup>
+
+### Step 2: Add the Dependency
+
+Add Lithostitched to your dependencies:
+
+<CodeGroup>
+
+```kotlin build.gradle.kts
+dependencies {
+    // Lithostitched for NeoForge 1.21.1
+    implementation("maven.modrinth:lithostitched:1.5.8+beta1-neoforge-1.21.1")
+    
+    // Or for NeoForge 1.21.11
+    // implementation("maven.modrinth:lithostitched:1.5.8+beta1-neoforge-1.21.11")
+}
+```
+
+```groovy build.gradle
+dependencies {
+    // Lithostitched for NeoForge 1.21.1
+    implementation "maven.modrinth:lithostitched:1.5.8+beta1-neoforge-1.21.1"
+    
+    // Or for NeoForge 1.21.11
+    // implementation "maven.modrinth:lithostitched:1.5.8+beta1-neoforge-1.21.11"
+}
+```
+
+</CodeGroup>
+
+### Step 3: Declare the Dependency
+
+Add Lithostitched as a dependency in your `neoforge.mods.toml`:
+
+```toml neoforge.mods.toml
+[[mods]]
+modId="your_mod_id"
+version="1.0.0"
+
+[[dependencies.your_mod_id]]
+    modId="neoforge"
+    type="required"
+    versionRange="[21.1,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.your_mod_id]]
+    modId="lithostitched"
+    type="required"
+    versionRange="[1.5.8,)"
+    ordering="NONE"
+    side="BOTH"
+```
+
+## For Datapack Creators
+
+If you're creating a datapack that uses Lithostitched features, you don't need to install anything in your development environment. Simply:
+
+1. Download Lithostitched from [Modrinth](https://modrinth.com/mod/lithostitched)
+2. Install it in your Minecraft mods folder
+3. Create your datapack with Lithostitched worldgen modifiers
+
+## Verification
+
+To verify Lithostitched is installed correctly:
+
+<Steps>
+  <Step title="Run Gradle refresh">
+    Refresh your Gradle project to download dependencies:
+    ```bash
+    ./gradlew --refresh-dependencies
+    ```
+  </Step>
+  
+  <Step title="Check the build output">
+    Build your project and check for Lithostitched in the output:
+    ```bash
+    ./gradlew build
+    ```
+  </Step>
+  
+  <Step title="Import the API">
+    Try importing Lithostitched classes in your code:
+    ```java
+    import dev.worldgen.lithostitched.Lithostitched;
+    import dev.worldgen.lithostitched.worldgen.modifier.Modifier;
+    ```
+  </Step>
+  
+  <Step title="Run the game">
+    Launch the game and check the logs for Lithostitched initialization:
+    ```bash
+    ./gradlew runClient
+    ```
+    
+    You should see log entries from `lithostitched` in the console.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Dependency Resolution Errors
+
+If Gradle cannot resolve the Lithostitched dependency:
+
+1. Verify the Modrinth Maven repository is added correctly
+2. Check your internet connection
+3. Try running with `--refresh-dependencies` flag
+4. Ensure the version number matches exactly (including the `-fabric-` or `-neoforge-` suffix)
+
+### Version Conflicts
+
+If you encounter version conflicts with other mods:
+
+1. Check that all mods target the same Minecraft version
+2. Verify Fabric Loader version (should be 0.18.2+) or NeoForge version
+3. Update to the latest version of conflicting dependencies
+
+### Missing Classes at Runtime
+
+<Warning>
+  If you see `NoClassDefFoundError` at runtime, ensure you're using `modImplementation` (Fabric) or `implementation` (NeoForge), not `compileOnly`.
+</Warning>
+
+For Fabric, the dependency scope must be `modImplementation` to include Lithostitched in the runtime classpath.
+
+## Next Steps
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Create your first worldgen modifier and see Lithostitched in action
+</Card>

@@ -1,0 +1,585 @@
+---
+title: Structure Modifiers
+description: Modifiers for template pools, structure sets, and structure configuration
+icon: building
+---
+
+## Overview
+
+Structure modifiers allow you to modify Minecraft's structure generation system, including template pools (jigsaw structures), structure sets, processor lists, and structure spawn conditions.
+
+## Add Template Pool Elements
+
+Adds structure pool elements to existing template pools.
+
+```java
+public record AddTemplatePoolElementsModifier(
+    int priority,
+    HolderSet<StructureTemplatePool> templatePools,
+    List<Pair<StructurePoolElement, Integer>> elements
+) implements Modifier
+```
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:add_template_pool_elements"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority. Lower values execute first.
+</ParamField>
+
+<ParamField path="template_pools" type="string | string[]" required>
+  Registry ID(s) of template pool(s) to modify. Supports tags with `#` prefix.
+</ParamField>
+
+<ParamField path="elements" type="array" required>
+  Array of pool elements to add. Each element contains:
+  
+  <Expandable title="Element Structure">
+    <ParamField path="element" type="object" required>
+      A `StructurePoolElement` object (single, feature, list, legacy, or empty)
+    </ParamField>
+    
+    <ParamField path="weight" type="integer" required>
+      Selection weight (1-150). Higher values increase selection chance.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Example
+
+<CodeGroup>
+```json Add Custom Building to Village
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "priority": 1000,
+  "template_pools": "minecraft:village/plains/houses",
+  "elements": [
+    {
+      "element": {
+        "location": "mymod:village/plains/custom_house",
+        "processors": "minecraft:empty",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 5
+    }
+  ]
+}
+```
+
+```json Add Multiple Elements with Tags
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "template_pools": "#mymod:custom_villages",
+  "elements": [
+    {
+      "element": {
+        "location": "mymod:structure_1",
+        "processors": "mymod:weathering",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 10
+    },
+    {
+      "element": {
+        "location": "mymod:structure_2",
+        "processors": "minecraft:empty",
+        "projection": "terrain_matching",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 3
+    }
+  ]
+}
+```
+</CodeGroup>
+
+---
+
+## Add Structure Set Entries
+
+Adds structure entries to structure sets, controlling which structures can generate together.
+
+```java
+public record AddStructureSetEntriesModifier(
+    int priority,
+    HolderSet<StructureSet> structureSets,
+    List<StructureSet.StructureSelectionEntry> entries
+) implements Modifier
+```
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:add_structure_set_entries"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority.
+</ParamField>
+
+<ParamField path="structure_sets" type="string | string[]" required>
+  Registry ID(s) of structure set(s) to modify.
+</ParamField>
+
+<ParamField path="entries" type="array" required>
+  Array of structure selection entries to add.
+  
+  <Expandable title="Entry Structure">
+    <ParamField path="structure" type="string" required>
+      Registry ID of the structure to add
+    </ParamField>
+    
+    <ParamField path="weight" type="integer" required>
+      Selection weight for this structure
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Example
+
+<CodeGroup>
+```json Add Custom Structure to Villages
+{
+  "type": "lithostitched:add_structure_set_entries",
+  "structure_sets": "minecraft:villages",
+  "entries": [
+    {
+      "structure": "mymod:custom_village",
+      "weight": 5
+    }
+  ]
+}
+```
+</CodeGroup>
+
+---
+
+## Remove Structure Set Entries
+
+Removes structure entries from structure sets.
+
+```java
+public record RemoveStructureSetEntriesModifier(
+    int priority,
+    HolderSet<StructureSet> structureSets,
+    List<Holder<Structure>> entries
+) implements Modifier
+```
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:remove_structure_set_entries"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="2000">
+  Execution priority. Defaults to 2000 to run after additions.
+</ParamField>
+
+<ParamField path="structure_sets" type="string | string[]" required>
+  Registry ID(s) of structure set(s) to modify.
+</ParamField>
+
+<ParamField path="structures" type="string[]" required>
+  Array of structure registry IDs to remove.
+</ParamField>
+
+### Example
+
+<CodeGroup>
+```json Remove Desert Pyramid
+{
+  "type": "lithostitched:remove_structure_set_entries",
+  "priority": 2000,
+  "structure_sets": "minecraft:desert_pyramids",
+  "structures": [
+    "minecraft:desert_pyramid"
+  ]
+}
+```
+</CodeGroup>
+
+---
+
+## Set Pool Aliases
+
+Sets or appends pool aliases for jigsaw structures, allowing dynamic pool replacement.
+
+```java
+public record SetPoolAliasesModifier(
+    int priority,
+    HolderSet<Structure> structures,
+    List<PoolAliasBinding> poolAliases,
+    boolean append
+) implements Modifier
+```
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:set_pool_aliases"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority.
+</ParamField>
+
+<ParamField path="structures" type="string | string[]" required>
+  Registry ID(s) of jigsaw structure(s) to modify.
+</ParamField>
+
+<ParamField path="pool_aliases" type="array" required>
+  Array of pool alias bindings. Each binding maps an alias to target pools.
+</ParamField>
+
+<ParamField path="append" type="boolean" default="true">
+  Whether to append to existing aliases (`true`) or replace them (`false`).
+</ParamField>
+
+### Example
+
+<CodeGroup>
+```json Set Village Pool Aliases
+{
+  "type": "lithostitched:set_pool_aliases",
+  "structures": "minecraft:village_plains",
+  "append": true,
+  "pool_aliases": [
+    {
+      "type": "minecraft:direct",
+      "alias": "mymod:village_variant",
+      "target": "mymod:plains_houses_variant"
+    }
+  ]
+}
+```
+</CodeGroup>
+
+<Warning>
+  Target structures must be jigsaw structures (vanilla or `lithostitched:jigsaw`). The modifier will fail validation for non-jigsaw structures.
+</Warning>
+
+---
+
+## Set Pool Element Processors
+
+Sets or appends structure processors to template pool elements.
+
+```java
+public record SetPoolElementProcessorsModifier(
+    int priority,
+    HolderSet<StructureTemplatePool> templatePools,
+    Optional<List<Identifier>> locations,
+    Holder<StructureProcessorList> processorList,
+    boolean append
+) implements Modifier
+```
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:set_pool_element_processors"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority.
+</ParamField>
+
+<ParamField path="template_pools" type="string | string[]" required>
+  Registry ID(s) of template pool(s) to modify.
+</ParamField>
+
+<ParamField path="locations" type="string[]" optional>
+  Optional array of structure template locations to filter. If omitted, applies to all elements in the pool.
+</ParamField>
+
+<ParamField path="processor_list" type="string | object" required>
+  Registry ID or inline definition of processor list to apply.
+</ParamField>
+
+<ParamField path="append" type="boolean" default="true">
+  Whether to append processors (`true`) or replace them (`false`).
+</ParamField>
+
+### Example
+
+<CodeGroup>
+```json Add Weathering to Specific Buildings
+{
+  "type": "lithostitched:set_pool_element_processors",
+  "template_pools": "minecraft:village/plains/houses",
+  "locations": [
+    "minecraft:village/plains/houses/plains_medium_house_1",
+    "minecraft:village/plains/houses/plains_medium_house_2"
+  ],
+  "processor_list": "mymod:weathering_processors",
+  "append": true
+}
+```
+
+```json Replace All Processors in Pool
+{
+  "type": "lithostitched:set_pool_element_processors",
+  "template_pools": "mymod:custom_structures",
+  "processor_list": {
+    "processors": [
+      {
+        "processor_type": "minecraft:rule",
+        "rules": []
+      }
+    ]
+  },
+  "append": false
+}
+```
+</CodeGroup>
+
+---
+
+## Set Structure Spawn Condition
+
+Sets placement conditions for structure spawning.
+
+```java
+public record SetStructureSpawnConditionModifier(
+    int priority,
+    HolderSet<Structure> structures,
+    PlacementCondition spawnCondition,
+    boolean append
+) implements Modifier
+```
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:set_structure_spawn_condition"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority.
+</ParamField>
+
+<ParamField path="structures" type="string | string[]" required>
+  Registry ID(s) of structure(s) to modify.
+</ParamField>
+
+<ParamField path="spawn_condition" type="object" required>
+  A `PlacementCondition` object defining when the structure can spawn.
+</ParamField>
+
+<ParamField path="append" type="boolean" default="true">
+  Whether to append to existing conditions or replace them.
+</ParamField>
+
+### Example
+
+<CodeGroup>
+```json Restrict Structure to Specific Biomes
+{
+  "type": "lithostitched:set_structure_spawn_condition",
+  "structures": "mymod:custom_structure",
+  "spawn_condition": {
+    "type": "lithostitched:in_biome",
+    "biomes": [
+      "minecraft:plains",
+      "minecraft:sunflower_plains"
+    ]
+  },
+  "append": false
+}
+```
+
+```json Add Height Restriction
+{
+  "type": "lithostitched:set_structure_spawn_condition",
+  "structures": "minecraft:ancient_city",
+  "spawn_condition": {
+    "type": "lithostitched:all_of",
+    "conditions": [
+      {
+        "type": "lithostitched:height_filter",
+        "min_inclusive": -64,
+        "max_inclusive": 0
+      }
+    ]
+  },
+  "append": true
+}
+```
+</CodeGroup>
+
+---
+
+## Add Processor List Processors
+
+Adds structure processors to existing processor lists.
+
+```java
+public record AddProcessorListProcessorsModifier(
+    int priority,
+    HolderSet<StructureProcessorList> processorLists,
+    StructureProcessorList processors
+) implements Modifier
+```
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:add_processor_list_processors"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority.
+</ParamField>
+
+<ParamField path="processor_lists" type="string | string[]" required>
+  Registry ID(s) of processor list(s) to modify.
+</ParamField>
+
+<ParamField path="processors" type="object" required>
+  A `StructureProcessorList` object containing processors to add.
+</ParamField>
+
+### Example
+
+<CodeGroup>
+```json Add Decay Processor
+{
+  "type": "lithostitched:add_processor_list_processors",
+  "processor_lists": "minecraft:village_plains",
+  "processors": {
+    "processors": [
+      {
+        "processor_type": "minecraft:rule",
+        "rules": [
+          {
+            "location_predicate": {
+              "predicate_type": "minecraft:always_true"
+            },
+            "input_predicate": {
+              "block": "minecraft:cobblestone",
+              "predicate_type": "minecraft:random_block_match",
+              "probability": 0.1
+            },
+            "output_state": {
+              "Name": "minecraft:mossy_cobblestone"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+</CodeGroup>
+
+---
+
+## Add Structure Templates
+
+Adds structure template locations to template lists.
+
+```java
+public record AddStructureTemplatesModifier(
+    int priority,
+    HolderSet<TemplateList> targets,
+    List<Identifier> templates
+) implements Modifier
+```
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:add_structure_templates"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority.
+</ParamField>
+
+<ParamField path="targets" type="string | string[]" required>
+  Registry ID(s) of template list(s) to modify.
+</ParamField>
+
+<ParamField path="templates" type="string | string[]" required>
+  Template location(s) to add to the list.
+</ParamField>
+
+### Example
+
+<CodeGroup>
+```json Add Templates to List
+{
+  "type": "lithostitched:add_structure_templates",
+  "targets": "mymod:dungeon_templates",
+  "templates": [
+    "mymod:dungeons/variant_1",
+    "mymod:dungeons/variant_2",
+    "mymod:dungeons/variant_3"
+  ]
+}
+```
+
+```json Single Template
+{
+  "type": "lithostitched:add_structure_templates",
+  "targets": "mymod:special_structures",
+  "templates": "mymod:structures/special"
+}
+```
+</CodeGroup>
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Template Pool Weights">
+    - Vanilla structures typically use weights between 1-10
+    - Higher weights increase selection probability
+    - Balance weights to maintain vanilla structure distribution
+    - Test in-game to verify desired spawn rates
+  </Accordion>
+  
+  <Accordion title="Processor Order Matters">
+    - Processors execute in order within a list
+    - When appending, new processors run after existing ones
+    - Use `append: false` to completely replace processor behavior
+    - Consider processor interactions carefully
+  </Accordion>
+  
+  <Accordion title="Use Tags for Bulk Operations">
+    - Create structure tags for related structures
+    - Apply modifiers to tags instead of individual structures
+    - Easier to maintain and extend
+  </Accordion>
+  
+  <Accordion title="Test Structure Generation">
+    - Use `/locate structure` to find modified structures
+    - Verify processor effects with different seeds
+    - Check that weights produce expected distribution
+    - Test with multiple datapacks enabled
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Pool Elements" icon="cube" href="/api/structures/pool-elements">
+    Learn about structure pool element types
+  </Card>
+  <Card title="Processors" icon="gears" href="/api/structures/processors">
+    Explore structure processor types
+  </Card>
+  <Card title="Placement Conditions" icon="filter" href="/api/features/placement-conditions">
+    Understand placement condition system
+  </Card>
+  <Card title="Examples" icon="code" href="/guides/custom-structures">
+    See practical structure modifier examples
+  </Card>
+</CardGroup>

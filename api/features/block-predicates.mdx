@@ -1,0 +1,422 @@
+---
+title: Block Predicates
+description: Custom block predicates for testing block states and positions
+---
+
+Block predicates are used to test conditions about blocks at specific positions. They're commonly used in ore generation, feature placement, and structure validation.
+
+## BlockStatePredicate
+
+Tests block state properties at an offset position.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:block_state",
+  "offset": [0, -1, 0],
+  "properties": {
+    "snowy": "true"
+  }
+}
+```
+
+### Fields
+
+<ParamField path="offset" type="Vec3i" required>
+  Position offset from the test location (x, y, z)
+</ParamField>
+
+<ParamField path="properties" type="StatePropertiesPredicate" required>
+  Block state properties to match
+</ParamField>
+
+### Example Use Cases
+
+**Check if block below is grass:**
+```json
+{
+  "type": "lithostitched:block_state",
+  "offset": [0, -1, 0],
+  "properties": {
+    "snowy": "false"
+  }
+}
+```
+
+**Check waterlogged state:**
+```json
+{
+  "type": "lithostitched:block_state",
+  "offset": [0, 0, 0],
+  "properties": {
+    "waterlogged": "true"
+  }
+}
+```
+
+**Check facing direction:**
+```json
+{
+  "type": "lithostitched:block_state",
+  "offset": [1, 0, 0],
+  "properties": {
+    "facing": "west"
+  }
+}
+```
+
+**Multiple properties:**
+```json
+{
+  "type": "lithostitched:block_state",
+  "offset": [0, 0, 0],
+  "properties": {
+    "half": "top",
+    "waterlogged": "false",
+    "facing": "north"
+  }
+}
+```
+
+---
+
+## InStructurePredicate
+
+Tests if a position is within a structure's bounding box.
+
+### Configuration
+
+**Any structure:**
+```json
+{
+  "type": "lithostitched:in_structure",
+  "search_range": 16
+}
+```
+
+**Specific structure:**
+```json
+{
+  "type": "lithostitched:in_structure",
+  "structure": "minecraft:village_plains",
+  "search_range": {
+    "horizontal": 32,
+    "vertical": 128
+  }
+}
+```
+
+### Fields
+
+<ParamField path="structure" type="Holder<Structure>" optional>
+  Specific structure to check for. If omitted, checks for any structure.
+</ParamField>
+
+<ParamField path="search_range" type="SearchRange" required>
+  How far to search for structures
+</ParamField>
+
+### SearchRange Format
+
+**Simple (same horizontal and vertical):**
+```json
+"search_range": 16
+```
+
+**Separate horizontal and vertical:**
+```json
+"search_range": {
+  "horizontal": 32,
+  "vertical": 64
+}
+```
+
+### Fields
+
+<ParamField path="search_range.horizontal" type="int" required>
+  Horizontal search radius (0-32 blocks)
+</ParamField>
+
+<ParamField path="search_range.vertical" type="int" default="dimension height">
+  Vertical search radius (0-dimension height)
+</ParamField>
+
+### Example Use Cases
+
+**Check if in any village:**
+```json
+{
+  "type": "lithostitched:in_structure",
+  "structure": "minecraft:village",
+  "search_range": 32
+}
+```
+
+**Check if in fortress (large vertical range):**
+```json
+{
+  "type": "lithostitched:in_structure",
+  "structure": "minecraft:fortress",
+  "search_range": {
+    "horizontal": 16,
+    "vertical": 256
+  }
+}
+```
+
+**Check if in any structure (small area):**
+```json
+{
+  "type": "lithostitched:in_structure",
+  "search_range": 8
+}
+```
+
+<Note>
+This predicate checks chunk structure references and validates actual bounding box intersections. It's relatively expensive, so use reasonable search ranges.
+</Note>
+
+---
+
+## MultipleOfPredicate
+
+Requires a specific count of sub-predicates to pass.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:multiple_of",
+  "predicates": [
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "minecraft:stone",
+      "offset": [0, -1, 0]
+    },
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "minecraft:stone",
+      "offset": [1, 0, 0]
+    },
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "minecraft:stone",
+      "offset": [-1, 0, 0]
+    },
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "minecraft:stone",
+      "offset": [0, 0, 1]
+    },
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "minecraft:stone",
+      "offset": [0, 0, -1]
+    }
+  ],
+  "allowed_count": {
+    "min_inclusive": 3,
+    "max_inclusive": 5
+  }
+}
+```
+
+### Fields
+
+<ParamField path="predicates" type="List<BlockPredicate>" required>
+  List of predicates to evaluate
+</ParamField>
+
+<ParamField path="allowed_count" type="InclusiveRange<Integer>" required>
+  Required number of passing predicates
+</ParamField>
+
+### Example Use Cases
+
+**Require at least 3 adjacent stone blocks:**
+```json
+{
+  "allowed_count": {
+    "min_inclusive": 3,
+    "max_inclusive": 6
+  }
+}
+```
+
+**Require exactly 2 conditions:**
+```json
+{
+  "allowed_count": {
+    "min_inclusive": 2,
+    "max_inclusive": 2
+  }
+}
+```
+
+**Partial surrounding check:**
+```json
+{
+  "type": "lithostitched:multiple_of",
+  "predicates": [
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "#minecraft:base_stone_overworld",
+      "offset": [1, 0, 0]
+    },
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "#minecraft:base_stone_overworld",
+      "offset": [-1, 0, 0]
+    },
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "#minecraft:base_stone_overworld",
+      "offset": [0, 0, 1]
+    },
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "#minecraft:base_stone_overworld",
+      "offset": [0, 0, -1]
+    }
+  ],
+  "allowed_count": {
+    "min_inclusive": 2,
+    "max_inclusive": 4
+  }
+}
+```
+
+Requires stone on at least 2 sides (prevents isolated placement).
+
+---
+
+## RandomChancePredicate
+
+Passes with a specified probability.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:random_chance",
+  "chance": 0.25
+}
+```
+
+### Fields
+
+<ParamField path="chance" type="float" required>
+  Probability of passing (0.0 to 1.0)
+</ParamField>
+
+### Example Use Cases
+
+**25% chance:**
+```json
+{
+  "type": "lithostitched:random_chance",
+  "chance": 0.25
+}
+```
+
+**1% chance (rare):**
+```json
+{
+  "type": "lithostitched:random_chance",
+  "chance": 0.01
+}
+```
+
+**75% chance (common):**
+```json
+{
+  "type": "lithostitched:random_chance",
+  "chance": 0.75
+}
+```
+
+**Guaranteed (always pass):**
+```json
+{
+  "type": "lithostitched:random_chance",
+  "chance": 1.0
+}
+```
+
+<Note>
+The random source is seeded with the world seed and position, ensuring deterministic results for the same position in the same world.
+</Note>
+
+## Combining with Vanilla Predicates
+
+Lithostitched predicates can be combined with vanilla predicates:
+
+```json
+{
+  "type": "minecraft:all_of",
+  "predicates": [
+    {
+      "type": "minecraft:matching_blocks",
+      "blocks": "#minecraft:base_stone_overworld"
+    },
+    {
+      "type": "lithostitched:random_chance",
+      "chance": 0.5
+    },
+    {
+      "type": "lithostitched:in_structure",
+      "structure": "minecraft:mineshaft",
+      "search_range": 16
+    }
+  ]
+}
+```
+
+This predicate:
+1. Checks for stone-like blocks
+2. Passes 50% of the time
+3. Only within 16 blocks of a mineshaft
+
+## Usage in Ore Configuration
+
+Block predicates are commonly used in [OreFeature](/api/features/feature-types#orefeature) targets:
+
+```json
+{
+  "type": "lithostitched:ore",
+  "config": {
+    "size": 9,
+    "targets": [
+      {
+        "predicate": {
+          "type": "minecraft:all_of",
+          "predicates": [
+            {
+              "type": "minecraft:matching_blocks",
+              "blocks": "minecraft:stone"
+            },
+            {
+              "type": "lithostitched:random_chance",
+              "chance": 0.8
+            }
+          ]
+        },
+        "state_provider": {
+          "type": "minecraft:simple_state_provider",
+          "state": {
+            "Name": "minecraft:iron_ore"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+## Source References
+
+- BlockStatePredicate: `BlockStatePredicate.java:11`
+- InStructurePredicate: `InStructurePredicate.java:30`
+- MultipleOfPredicate: `MultipleOfPredicate.java:14`
+- RandomChancePredicate: `RandomChancePredicate.java:11`

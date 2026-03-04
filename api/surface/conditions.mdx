@@ -1,0 +1,448 @@
+---
+title: Surface Conditions
+description: Custom conditions for controlling when surface rules apply
+icon: filter
+---
+
+## Overview
+
+Surface conditions determine when surface rules should apply. Lithostitched adds custom condition types that extend Minecraft's built-in conditions with biome matching, slope detection, and logical operators.
+
+## Custom Condition Types
+
+### Biome Condition
+
+Tests if the current position is in a specific biome or biome tag.
+
+**Java Interface:**
+```java
+public record BiomeCondition(HolderSet<Biome> biomes) implements SurfaceRules.ConditionSource {
+    @Override
+    public SurfaceRules.Condition apply(SurfaceRules.Context context) {
+        return () -> this.biomes.contains(context.biome());
+    }
+}
+```
+
+Source: `BiomeCondition.java:12-30`
+
+**JSON Format:**
+
+**Single Biome:**
+```json
+{
+  "type": "lithostitched:biome",
+  "biomes": "minecraft:desert"
+}
+```
+
+**Multiple Biomes:**
+```json
+{
+  "type": "lithostitched:biome",
+  "biomes": [
+    "minecraft:desert",
+    "minecraft:badlands",
+    "mymod:red_desert"
+  ]
+}
+```
+
+**Biome Tag:**
+```json
+{
+  "type": "lithostitched:biome",
+  "biomes": "#minecraft:is_badlands"
+}
+```
+
+**Usage Example:**
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "lithostitched:biome",
+    "biomes": "#mymod:has_red_sand"
+  },
+  "then_run": {
+    "type": "minecraft:block",
+    "result_state": { "Name": "minecraft:red_sand" }
+  }
+}
+```
+
+### Slope Condition
+
+Detects steep terrain by measuring height differences between neighboring positions.
+
+**Java Interface:**
+```java
+public record SlopeCondition(InclusiveRange<Integer> threshold) implements SurfaceRules.ConditionSource {
+    private static class Condition extends SurfaceRules.LazyXZCondition {
+        @Override
+        public boolean compute() {
+            // Measure height difference between N/S/E/W neighbors
+            int maxHeight = max(northHeight, southHeight, eastHeight, westHeight);
+            int minHeight = min(northHeight, southHeight, eastHeight, westHeight);
+            return threshold.isValueInRange(maxHeight - minHeight);
+        }
+    }
+}
+```
+
+Source: `SlopeCondition.java:14-67`
+
+**JSON Format:**
+
+**Default Threshold (4 blocks or more):**
+```json
+{
+  "type": "lithostitched:slope"
+}
+```
+
+**Custom Threshold:**
+```json
+{
+  "type": "lithostitched:slope",
+  "height_difference": {
+    "min_inclusive": 6,
+    "max_inclusive": 2147483647
+  }
+}
+```
+
+**Specific Range:**
+```json
+{
+  "type": "lithostitched:slope",
+  "height_difference": {
+    "min_inclusive": 3,
+    "max_inclusive": 8
+  }
+}
+```
+
+**Usage Example:**
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "lithostitched:slope",
+    "height_difference": { "min_inclusive": 5, "max_inclusive": 2147483647 }
+  },
+  "then_run": {
+    "type": "minecraft:block",
+    "result_state": { "Name": "minecraft:stone" }
+  }
+}
+```
+
+<Tip>
+  Use slope conditions to expose stone on cliffs, prevent grass on steep terrain, or create realistic erosion patterns.
+</Tip>
+
+### All Of Condition
+
+Requires all sub-conditions to be true (logical AND).
+
+**Java Interface:**
+```java
+public record AllOfCondition(List<SurfaceRules.ConditionSource> conditions) implements SurfaceRules.ConditionSource {
+    private record Condition(List<SurfaceRules.Condition> conditions) implements SurfaceRules.Condition {
+        @Override
+        public boolean test() {
+            for (SurfaceRules.Condition condition : conditions) {
+                if (!condition.test()) return false;
+            }
+            return true;
+        }
+    }
+}
+```
+
+Source: `AllOfCondition.java:9-34`
+
+**JSON Format:**
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:biome",
+      "biomes": "#minecraft:is_badlands"
+    },
+    {
+      "type": "minecraft:above_preliminary_surface"
+    },
+    {
+      "type": "minecraft:steep"
+    }
+  ]
+}
+```
+
+**Usage Example:**
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "lithostitched:all_of",
+    "conditions": [
+      {
+        "type": "lithostitched:biome",
+        "biomes": "mymod:snowy_peaks"
+      },
+      {
+        "type": "lithostitched:slope",
+        "height_difference": { "min_inclusive": 3, "max_inclusive": 2147483647 }
+      },
+      {
+        "type": "minecraft:y_above",
+        "anchor": { "absolute": 120 },
+        "surface_depth_multiplier": 0,
+        "add_stone_depth": false
+      }
+    ]
+  },
+  "then_run": {
+    "type": "minecraft:block",
+    "result_state": { "Name": "minecraft:packed_ice" }
+  }
+}
+```
+
+### Any Of Condition
+
+Requires at least one sub-condition to be true (logical OR).
+
+**Java Interface:**
+```java
+public record AnyOfCondition(List<SurfaceRules.ConditionSource> conditions) implements SurfaceRules.ConditionSource {
+    private record Condition(List<SurfaceRules.Condition> conditions) implements SurfaceRules.Condition {
+        @Override
+        public boolean test() {
+            for (SurfaceRules.Condition condition : conditions) {
+                if (condition.test()) return true;
+            }
+            return false;
+        }
+    }
+}
+```
+
+Source: `AnyOfCondition.java:9-34`
+
+**JSON Format:**
+```json
+{
+  "type": "lithostitched:any_of",
+  "conditions": [
+    {
+      "type": "lithostitched:biome",
+      "biomes": "minecraft:desert"
+    },
+    {
+      "type": "lithostitched:biome",
+      "biomes": "minecraft:badlands"
+    },
+    {
+      "type": "minecraft:temperature"
+    }
+  ]
+}
+```
+
+**Usage Example:**
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "lithostitched:any_of",
+    "conditions": [
+      {
+        "type": "lithostitched:biome",
+        "biomes": "#mymod:volcanic_biomes"
+      },
+      {
+        "type": "lithostitched:slope",
+        "height_difference": { "min_inclusive": 10, "max_inclusive": 2147483647 }
+      }
+    ]
+  },
+  "then_run": {
+    "type": "minecraft:block",
+    "result_state": { "Name": "minecraft:basalt" }
+  }
+}
+```
+
+## Complex Condition Examples
+
+### Cliff Detection
+
+Combine slope and biome conditions:
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:slope",
+      "height_difference": { "min_inclusive": 6, "max_inclusive": 2147483647 }
+    },
+    {
+      "type": "minecraft:above_preliminary_surface"
+    },
+    {
+      "type": "lithostitched:biome",
+      "biomes": "#mymod:has_cliffs"
+    }
+  ]
+}
+```
+
+### Multi-Biome Group
+
+Use `any_of` for biome variants:
+
+```json
+{
+  "type": "lithostitched:any_of",
+  "conditions": [
+    {
+      "type": "lithostitched:biome",
+      "biomes": "minecraft:desert"
+    },
+    {
+      "type": "lithostitched:biome",
+      "biomes": "minecraft:badlands"
+    },
+    {
+      "type": "lithostitched:biome",
+      "biomes": "#mymod:custom_deserts"
+    }
+  ]
+}
+```
+
+### Gentle Slopes Only
+
+Invert slope condition with `not`:
+
+```json
+{
+  "type": "minecraft:not",
+  "invert": {
+    "type": "lithostitched:slope",
+    "height_difference": { "min_inclusive": 4, "max_inclusive": 2147483647 }
+  }
+}
+```
+
+### Elevation and Biome
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:biome",
+      "biomes": "mymod:alpine_meadow"
+    },
+    {
+      "type": "minecraft:y_above",
+      "anchor": { "absolute": 100 },
+      "surface_depth_multiplier": 0,
+      "add_stone_depth": false
+    },
+    {
+      "type": "minecraft:not",
+      "invert": {
+        "type": "lithostitched:slope",
+        "height_difference": { "min_inclusive": 5, "max_inclusive": 2147483647 }
+      }
+    }
+  ]
+}
+```
+
+## Condition Chaining
+
+Build complex logic by nesting conditions:
+
+```json
+{
+  "type": "minecraft:condition",
+  "if_true": {
+    "type": "lithostitched:all_of",
+    "conditions": [
+      {
+        "type": "lithostitched:any_of",
+        "conditions": [
+          {
+            "type": "lithostitched:biome",
+            "biomes": "#mymod:hot_biomes"
+          },
+          {
+            "type": "minecraft:temperature"
+          }
+        ]
+      },
+      {
+        "type": "lithostitched:slope",
+        "height_difference": { "min_inclusive": 3, "max_inclusive": 8 }
+      },
+      {
+        "type": "minecraft:above_preliminary_surface"
+      }
+    ]
+  },
+  "then_run": {
+    "type": "minecraft:block",
+    "result_state": { "Name": "minecraft:red_sandstone" }
+  }
+}
+```
+
+## Performance Considerations
+
+<Warning>
+  Slope conditions use heightmap lookups which are more expensive than simple checks. Use them strategically and combine with faster conditions using `all_of` to short-circuit evaluation.
+</Warning>
+
+**Optimized Order:**
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:biome",
+      "biomes": "mymod:rare_biome"
+    },
+    {
+      "type": "minecraft:above_preliminary_surface"
+    },
+    {
+      "type": "lithostitched:slope"
+    }
+  ]
+}
+```
+
+Fast conditions (biome, y-level) come before expensive ones (slope).
+
+## Registry Information
+
+Conditions are registered through Minecraft's condition source system and integrated via mixins.
+
+**Custom Condition Types:**
+- `lithostitched:biome` - Biome matching
+- `lithostitched:slope` - Height difference detection
+- `lithostitched:all_of` - Logical AND
+- `lithostitched:any_of` - Logical OR
+
+## See Also
+
+- [Surface Rules](/api/surface/surface-rules) - Using conditions with rules
+- [Bandlands](/api/surface/bandlands) - Conditional bandlands application

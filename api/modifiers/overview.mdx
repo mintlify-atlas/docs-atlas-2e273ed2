@@ -1,0 +1,193 @@
+---
+title: Modifier System Overview
+description: Understanding Lithostitched's worldgen modifier system
+icon: wrench
+---
+
+## Introduction
+
+The Modifier System is the core of Lithostitched's functionality, providing a powerful data-driven approach to modifying Minecraft's worldgen without code. Modifiers are JSON files placed in `data/<namespace>/lithostitched_worldgen_modifier/` that apply changes to existing worldgen elements.
+
+## How Modifiers Work
+
+Modifiers are applied during server startup after all worldgen data is loaded. They allow you to:
+
+- Add or remove structures from structure sets
+- Inject elements into template pools
+- Modify surface rules and density functions
+- Add or remove biome features and spawns (Fabric)
+- Configure structure processors and more
+
+All modifiers implement the `Modifier` interface:
+
+```java
+public interface Modifier {
+    void applyModifier(RegistryAccess registryAccess);
+    void applyModifier();
+    int priority();
+    MapCodec<? extends Modifier> codec();
+}
+```
+
+## Priority System
+
+Modifiers execute in order based on their `priority` field. Lower numbers run first:
+
+<ParamField path="priority" type="integer" default="1000">
+  Determines execution order. Lower values execute first.
+  
+  **Default priorities:**
+  - Default modifiers: `1000`
+  - Remove modifiers: `2000` (execute after additions)
+  - NoOp modifier: `0` (highest priority)
+</ParamField>
+
+<CodeGroup>
+```json Example: High Priority Modifier
+{
+  "type": "lithostitched:add_surface_rule",
+  "priority": 500,
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:sequence",
+    "sequence": []
+  }
+}
+```
+
+```json Example: Low Priority Modifier
+{
+  "type": "lithostitched:remove_structure_set_entries",
+  "priority": 2500,
+  "structure_sets": ["minecraft:villages"],
+  "structures": ["minecraft:village_plains"]
+}
+```
+</CodeGroup>
+
+## Modifier Categories
+
+Lithostitched provides several categories of modifiers:
+
+<CardGroup cols={2}>
+  <Card title="Structure Modifiers" icon="building" href="/api/modifiers/structure-modifiers">
+    Modify template pools, structure sets, and structure configurations
+  </Card>
+  <Card title="Surface Modifiers" icon="mountain" href="/api/modifiers/surface-modifiers">
+    Add and modify surface rules for terrain generation
+  </Card>
+  <Card title="Density Modifiers" icon="wave-square" href="/api/modifiers/density-modifiers">
+    Wrap and modify density functions and noise routers
+  </Card>
+</CardGroup>
+
+## Common Modifier Types
+
+### No-Op Modifier
+
+The `no_op` modifier does nothing and is useful for overriding modifiers from other datapacks:
+
+```java
+public record NoOpModifier() implements Modifier
+```
+
+<CodeGroup>
+```json No-Op Example
+{
+  "type": "lithostitched:no_op"
+}
+```
+</CodeGroup>
+
+Place this in `data/<namespace>/lithostitched_worldgen_modifier/<path>.json` to override another modifier at the same path.
+
+## File Location
+
+All modifiers must be placed in:
+
+```
+data/<namespace>/lithostitched_worldgen_modifier/<name>.json
+```
+
+<Note>
+  Modifiers with the same file path override each other based on datapack priority. Higher priority datapacks override lower ones.
+</Note>
+
+## Execution Flow
+
+The `ModifierManager` handles modifier application:
+
+```java
+public static void applyModifiers(MinecraftServer server) {
+    RegistryAccess registries = server.registryAccess();
+    HolderLookup.RegistryLookup<Modifier> modifiers = registries.lookupOrThrow(LithostitchedRegistryKeys.WORLDGEN_MODIFIER);
+    
+    // Sort by priority and apply
+    for (Holder.Reference<Modifier> reference : sortByPriority(modifiers.listElements())) {
+        reference.value().applyModifier(registries);
+    }
+}
+```
+
+1. Server starts and loads all worldgen data
+2. Lithostitched collects all modifiers from datapacks
+3. Modifiers are sorted by priority (lowest first)
+4. Each modifier applies its changes sequentially
+5. Worldgen is ready with all modifications applied
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use appropriate priorities">
+    - Use default priority (1000) for most additions
+    - Use higher priority (2000+) for removals to ensure they run after additions
+    - Use lower priority (500-999) for base modifications that should run first
+  </Accordion>
+  
+  <Accordion title="Organize modifiers logically">
+    - Group related modifiers in subdirectories
+    - Use descriptive file names
+    - Consider using prefixes like `01_`, `02_` for clear ordering
+  </Accordion>
+  
+  <Accordion title="Test modifier combinations">
+    - Multiple modifiers can target the same registry entry
+    - Ensure modifiers work together correctly
+    - Use debug logging to verify execution order
+  </Accordion>
+  
+  <Accordion title="Document your modifiers">
+    - Add comments in adjacent `.txt` files if needed
+    - Use clear, descriptive naming
+    - Keep modifier files focused on single concerns
+  </Accordion>
+</AccordionGroup>
+
+## Registry Keys
+
+Modifiers are registered under:
+
+```java
+public static final ResourceKey<Registry<MapCodec<? extends Modifier>>> MODIFIER_TYPE = 
+    ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("lithostitched", "worldgen_modifier_type"));
+
+public static final ResourceKey<Registry<Modifier>> WORLDGEN_MODIFIER = 
+    ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("lithostitched", "worldgen_modifier"));
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Structure Modifiers" icon="building" href="/api/modifiers/structure-modifiers">
+    Learn about template pool and structure set modifiers
+  </Card>
+  <Card title="Surface Modifiers" icon="mountain" href="/api/modifiers/surface-modifiers">
+    Discover surface rule modification
+  </Card>
+  <Card title="Density Modifiers" icon="wave-square" href="/api/modifiers/density-modifiers">
+    Explore density function wrapping
+  </Card>
+  <Card title="Common Patterns" icon="code" href="/guides/common-patterns">
+    See practical modifier examples
+  </Card>
+</CardGroup>

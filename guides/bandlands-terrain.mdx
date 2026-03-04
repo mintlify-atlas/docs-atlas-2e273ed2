@@ -1,0 +1,661 @@
+---
+title: "Creating Bandlands Terrain"
+description: "Learn how to create banded terrain patterns like Mesa biomes with horizontal layers of colored blocks"
+---
+
+Bandlands are striking terrain features with horizontal bands of different colored blocks, like the terracotta layers in Minecraft's Badlands (Mesa) biomes. Lithostitched provides a powerful system for creating custom bandlands patterns.
+
+## Understanding Bandlands
+
+Bandlands generate horizontal layers of blocks at different Y-levels with slight noise-based variation. The system consists of:
+
+- **Base block**: Default block used when no band applies
+- **Bands**: Layers of specific blocks at configurable intervals
+- **Band offset noise**: Adds natural variation to layer heights
+
+## Basic Bandlands Structure
+
+Bandlands are defined using JSON and referenced in surface rules:
+
+```json
+{
+  "type": "lithostitched:bandlands",
+  "base": {
+    "Name": "minecraft:terracotta"
+  },
+  "bands": [
+    {
+      "type": "lithostitched:base_band",
+      "count": 10,
+      "size": 3,
+      "state": {
+        "Name": "minecraft:orange_terracotta"
+      }
+    }
+  ]
+}
+```
+
+This creates a bandlands with terracotta as the base and random orange terracotta bands.
+
+## Band Types
+
+Lithostitched provides two types of bands:
+
+### Base Bands
+
+Random bands placed throughout the height range:
+
+```json
+{
+  "type": "lithostitched:base_band",
+  "count": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 8,
+    "max_inclusive": 12
+  },
+  "size": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 2,
+    "max_inclusive": 4
+  },
+  "state": {
+    "Name": "minecraft:red_terracotta"
+  }
+}
+```
+
+- **count**: Number of bands to place (supports IntProvider)
+- **size**: Thickness of each band in blocks (supports IntProvider)
+- **state**: Block state to use for the band
+
+### Repeating Bands
+
+Regularly spaced bands at consistent intervals:
+
+```json
+{
+  "type": "lithostitched:repeating_band",
+  "interval": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 10,
+    "max_inclusive": 15
+  },
+  "size": 2,
+  "state": {
+    "Name": "minecraft:white_terracotta"
+  }
+}
+```
+
+- **interval**: Spacing between bands (supports IntProvider)
+- **size**: Thickness of each band (supports IntProvider)
+- **state**: Block state to use for the band
+
+## Creating Mesa-Style Terrain
+
+<Steps>
+  <Step title="Create the bandlands file">
+    Create a bandlands definition at:
+    ```
+    data/your_namespace/lithostitched/bandlands/mesa.json
+    ```
+  </Step>
+
+  <Step title="Define base and bands">
+    ```json
+    {
+      "base": {
+        "Name": "minecraft:terracotta"
+      },
+      "bands": [
+        {
+          "type": "lithostitched:base_band",
+          "count": 12,
+          "size": {
+            "type": "minecraft:uniform",
+            "min_inclusive": 2,
+            "max_inclusive": 5
+          },
+          "state": {
+            "Name": "minecraft:orange_terracotta"
+          }
+        },
+        {
+          "type": "lithostitched:base_band",
+          "count": 8,
+          "size": {
+            "type": "minecraft:uniform",
+            "min_inclusive": 1,
+            "max_inclusive": 3
+          },
+          "state": {
+            "Name": "minecraft:red_terracotta"
+          }
+        },
+        {
+          "type": "lithostitched:repeating_band",
+          "interval": 20,
+          "size": 1,
+          "state": {
+            "Name": "minecraft:white_terracotta"
+          }
+        }
+      ]
+    }
+    ```
+  </Step>
+
+  <Step title="Apply via surface rule">
+    Reference the bandlands in a surface rule using a custom surface rule condition:
+    ```json
+    {
+      "type": "lithostitched:bandlands",
+      "bandlands": "your_namespace:mesa"
+    }
+    ```
+  </Step>
+</Steps>
+
+## Complex Bandlands Patterns
+
+### Multi-Color Badlands
+
+Create intricate patterns with multiple band types:
+
+```json
+{
+  "base": {
+    "Name": "minecraft:terracotta"
+  },
+  "bands": [
+    {
+      "type": "lithostitched:base_band",
+      "count": 15,
+      "size": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 2,
+        "max_inclusive": 6
+      },
+      "state": {
+        "Name": "minecraft:orange_terracotta"
+      }
+    },
+    {
+      "type": "lithostitched:base_band",
+      "count": 12,
+      "size": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 1,
+        "max_inclusive": 4
+      },
+      "state": {
+        "Name": "minecraft:red_terracotta"
+      }
+    },
+    {
+      "type": "lithostitched:base_band",
+      "count": 8,
+      "size": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 1,
+        "max_inclusive": 3
+      },
+      "state": {
+        "Name": "minecraft:yellow_terracotta"
+      }
+    },
+    {
+      "type": "lithostitched:base_band",
+      "count": 6,
+      "size": 2,
+      "state": {
+        "Name": "minecraft:brown_terracotta"
+      }
+    },
+    {
+      "type": "lithostitched:repeating_band",
+      "interval": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 15,
+        "max_inclusive": 25
+      },
+      "size": 1,
+      "state": {
+        "Name": "minecraft:white_terracotta"
+      }
+    },
+    {
+      "type": "lithostitched:repeating_band",
+      "interval": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 30,
+        "max_inclusive": 40
+      },
+      "size": 2,
+      "state": {
+        "Name": "minecraft:light_gray_terracotta"
+      }
+    }
+  ]
+}
+```
+
+### Canyon Walls
+
+Create stratified rock layers:
+
+```json
+{
+  "base": {
+    "Name": "minecraft:stone"
+  },
+  "bands": [
+    {
+      "type": "lithostitched:repeating_band",
+      "interval": 8,
+      "size": 2,
+      "state": {
+        "Name": "minecraft:andesite"
+      }
+    },
+    {
+      "type": "lithostitched:repeating_band",
+      "interval": 12,
+      "size": 1,
+      "state": {
+        "Name": "minecraft:diorite"
+      }
+    },
+    {
+      "type": "lithostitched:base_band",
+      "count": 5,
+      "size": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 2,
+        "max_inclusive": 5
+      },
+      "state": {
+        "Name": "minecraft:granite"
+      }
+    }
+  ]
+}
+```
+
+### Sedimentary Layers
+
+Simulate geological sediment:
+
+```json
+{
+  "base": {
+    "Name": "minecraft:sandstone"
+  },
+  "bands": [
+    {
+      "type": "lithostitched:repeating_band",
+      "interval": 5,
+      "size": 1,
+      "state": {
+        "Name": "minecraft:red_sandstone"
+      }
+    },
+    {
+      "type": "lithostitched:base_band",
+      "count": 10,
+      "size": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 1,
+        "max_inclusive": 2
+      },
+      "state": {
+        "Name": "minecraft:smooth_sandstone"
+      }
+    },
+    {
+      "type": "lithostitched:base_band",
+      "count": 3,
+      "size": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 3,
+        "max_inclusive": 6
+      },
+      "state": {
+        "Name": "minecraft:cut_sandstone"
+      }
+    }
+  ]
+}
+```
+
+## Applying Bandlands with Surface Rules
+
+Bandlands are applied through surface rules. While Lithostitched provides a custom surface rule type for bandlands, you need to integrate it into your dimension's surface rules.
+
+### Basic Application
+
+```json
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": [
+    "minecraft:overworld"
+  ],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "minecraft:biome",
+      "biome_is": [
+        "your_namespace:mesa_biome"
+      ]
+    },
+    "then_run": {
+      "type": "lithostitched:bandlands",
+      "bandlands": "your_namespace:mesa"
+    }
+  }
+}
+```
+
+### Conditional Bandlands
+
+Apply different bandlands based on height:
+
+```json
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:y_above",
+        "anchor": {
+          "absolute": 100
+        },
+        "surface_depth_multiplier": 0,
+        "add_stone_depth": false
+      },
+      "then_run": {
+        "type": "lithostitched:bandlands",
+        "bandlands": "your_namespace:high_mesa"
+      }
+    },
+    {
+      "type": "lithostitched:bandlands",
+      "bandlands": "your_namespace:low_mesa"
+    }
+  ]
+}
+```
+
+### Biome-Specific Bandlands
+
+```json
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:biome",
+        "biome_is": [
+          "your_namespace:red_mesa"
+        ]
+      },
+      "then_run": {
+        "type": "lithostitched:bandlands",
+        "bandlands": "your_namespace:red_bandlands"
+      }
+    },
+    {
+      "type": "minecraft:condition",
+      "if_true": {
+        "type": "minecraft:biome",
+        "biome_is": [
+          "your_namespace:white_mesa"
+        ]
+      },
+      "then_run": {
+        "type": "lithostitched:bandlands",
+        "bandlands": "your_namespace:white_bandlands"
+      }
+    }
+  ]
+}
+```
+
+## IntProvider Patterns
+
+Use IntProviders for dynamic band sizing:
+
+### Uniform Distribution
+
+Random value in range:
+
+```json
+"size": {
+  "type": "minecraft:uniform",
+  "min_inclusive": 2,
+  "max_inclusive": 6
+}
+```
+
+### Biased Distribution
+
+Weighted toward certain values:
+
+```json
+"size": {
+  "type": "minecraft:weighted_list",
+  "distribution": [
+    {
+      "weight": 5,
+      "data": 2
+    },
+    {
+      "weight": 3,
+      "data": 3
+    },
+    {
+      "weight": 1,
+      "data": 5
+    }
+  ]
+}
+```
+
+### Clamped Normal
+
+Bell curve distribution:
+
+```json
+"size": {
+  "type": "minecraft:clamped_normal",
+  "mean": 3.0,
+  "deviation": 1.0,
+  "min_inclusive": 1,
+  "max_inclusive": 6
+}
+```
+
+## Design Tips
+
+<AccordionGroup>
+  <Accordion title="Balance band density">
+    - Too many bands creates visual noise
+    - Too few bands looks monotonous
+    - Aim for 15-25 total bands across 192 height units
+    - Use 2-4 different band types for variety
+  </Accordion>
+
+  <Accordion title="Choose harmonious colors">
+    - Use complementary colors for contrast
+    - Vary brightness levels
+    - Include occasional accent colors
+    - Consider the base block carefully
+  </Accordion>
+
+  <Accordion title="Mix band types effectively">
+    - Use repeating bands for regular features (e.g., thin white layers)
+    - Use base bands for irregular patterns (e.g., thick colored sections)
+    - Layer different types for complexity
+    - Test different combinations
+  </Accordion>
+
+  <Accordion title="Size variation matters">
+    - Use IntProviders for natural variation
+    - Vary band thickness within each type
+    - Avoid all bands being the same size
+    - Occasional thick bands create focal points
+  </Accordion>
+</AccordionGroup>
+
+## Technical Details
+
+### Height Range
+
+Bandlands use a fixed array of 192 height levels. The system maps these 192 slots to your world's Y-coordinates with noise-based offset.
+
+### Band Offset Noise
+
+The system adds vertical variation using noise:
+- Noise value multiplied by 4.0
+- Creates wave-like variation in band heights
+- Prevents perfectly flat horizontal lines
+- Adds natural geological appearance
+
+### Band Application Order
+
+Bands are applied in order:
+1. Array filled with base block
+2. Each band processes in order defined
+3. Later bands can overwrite earlier bands
+4. Use this for layered effects
+
+## Performance Considerations
+
+<CardGroup cols={2}>
+  <Card title="Band count" icon="layer-group">
+    More bands = more processing
+    - Keep total bands under 30
+    - Use repeating bands efficiently
+    - Profile with timing reports
+  </Card>
+
+  <Card title="IntProvider complexity" icon="chart-line">
+    Complex providers add overhead
+    - Prefer constant values when possible
+    - Use uniform for simple randomization
+    - Avoid nested weighted lists
+  </Card>
+
+  <Card title="Surface rule integration" icon="sitemap">
+    Bandlands in surface rules matter
+    - Apply conditionally by biome
+    - Use stone_depth predicates
+    - Don't apply to all blocks
+  </Card>
+
+  <Card title="Testing at scale" icon="magnifying-glass">
+    Test performance in-game
+    - Check with multiple chunks loaded
+    - Monitor frame rate impact
+    - Test with other worldgen features
+  </Card>
+</CardGroup>
+
+## Examples Gallery
+
+### Rainbow Cliffs
+
+```json
+{
+  "base": {"Name": "minecraft:white_terracotta"},
+  "bands": [
+    {"type": "lithostitched:repeating_band", "interval": 12, "size": 2, "state": {"Name": "minecraft:red_terracotta"}},
+    {"type": "lithostitched:repeating_band", "interval": 12, "size": 2, "state": {"Name": "minecraft:orange_terracotta"}},
+    {"type": "lithostitched:repeating_band", "interval": 12, "size": 2, "state": {"Name": "minecraft:yellow_terracotta"}},
+    {"type": "lithostitched:repeating_band", "interval": 12, "size": 2, "state": {"Name": "minecraft:lime_terracotta"}},
+    {"type": "lithostitched:repeating_band", "interval": 12, "size": 2, "state": {"Name": "minecraft:light_blue_terracotta"}},
+    {"type": "lithostitched:repeating_band", "interval": 12, "size": 2, "state": {"Name": "minecraft:purple_terracotta"}}
+  ]
+}
+```
+
+### Ancient Ruins Stone
+
+```json
+{
+  "base": {"Name": "minecraft:stone_bricks"},
+  "bands": [
+    {"type": "lithostitched:base_band", "count": 8, "size": {"type": "minecraft:uniform", "min_inclusive": 1, "max_inclusive": 3}, "state": {"Name": "minecraft:cracked_stone_bricks"}},
+    {"type": "lithostitched:base_band", "count": 5, "size": {"type": "minecraft:uniform", "min_inclusive": 2, "max_inclusive": 4}, "state": {"Name": "minecraft:mossy_stone_bricks"}},
+    {"type": "lithostitched:repeating_band", "interval": 20, "size": 1, "state": {"Name": "minecraft:chiseled_stone_bricks"}}
+  ]
+}
+```
+
+### Nether Basalt Columns
+
+```json
+{
+  "base": {"Name": "minecraft:basalt"},
+  "bands": [
+    {"type": "lithostitched:repeating_band", "interval": 6, "size": 1, "state": {"Name": "minecraft:blackstone"}},
+    {"type": "lithostitched:base_band", "count": 6, "size": {"type": "minecraft:uniform", "min_inclusive": 2, "max_inclusive": 5}, "state": {"Name": "minecraft:smooth_basalt"}},
+    {"type": "lithostitched:base_band", "count": 3, "size": 1, "state": {"Name": "minecraft:gilded_blackstone"}}
+  ]
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Bands not appearing">
+    - Verify bandlands file location and syntax
+    - Check surface rule references correct bandlands ID
+    - Ensure surface rule conditions are met (biome, height, etc.)
+    - Test with /fill command to verify blocks place correctly
+  </Accordion>
+
+  <Accordion title="Bands too uniform">
+    - Add IntProvider variation to size and interval
+    - Mix base_band and repeating_band types
+    - Increase band count for more variety
+    - Use different colors with varying brightness
+  </Accordion>
+
+  <Accordion title="Bands too chaotic">
+    - Reduce total band count
+    - Use more repeating_band types
+    - Narrow IntProvider ranges
+    - Simplify color palette
+  </Accordion>
+
+  <Accordion title="Performance issues">
+    - Reduce total band count
+    - Simplify IntProvider configurations
+    - Apply conditionally by biome
+    - Test in smaller areas first
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Surface Rules" href="/guides/adding-modifiers#surface-rule-modifiers" icon="layer-group">
+    Learn more about surface rule integration
+  </Card>
+
+  <Card title="Common Patterns" href="/guides/common-patterns" icon="book">
+    Explore common worldgen patterns and techniques
+  </Card>
+
+  <Card title="Custom Biomes" href="/api/surface/bandlands" icon="tree">
+    Create custom biomes with bandlands terrain
+  </Card>
+
+  <Card title="Examples" href="/guides/common-patterns" icon="images">
+    Browse more bandlands examples and inspiration
+  </Card>
+</CardGroup>

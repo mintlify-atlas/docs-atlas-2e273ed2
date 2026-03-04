@@ -1,80 +1,354 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart Guide
+description: Create your first Lithostitched worldgen modifier in minutes
 ---
 
-## Get started in three steps
+This guide will walk you through creating your first worldgen modifier with Lithostitched. You'll learn how to add custom features to biomes using data-driven JSON configuration.
 
-Get your documentation site running locally and make your first customization.
+## What You'll Build
 
-### Step 1: Set up your local environment
+By the end of this guide, you'll have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- A working datapack that uses Lithostitched modifiers
+- A custom biome feature addition that adds flowers to plains biomes
+- Understanding of the modifier system and JSON structure
+
+## Prerequisites
+
+- Lithostitched installed (see [Installation](/installation))
+- Basic understanding of Minecraft datapacks
+- A text editor (VS Code, IntelliJ IDEA, etc.)
+
+## Project Setup
+
+<Steps>
+  <Step title="Create the datapack structure">
+    Create a new datapack in your world's `datapacks` folder:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    datapacks/
+    └── my_worldgen_pack/
+        ├── pack.mcmeta
+        └── data/
+            └── my_worldgen_pack/
+                └── lithostitched/
+                    └── worldgen_modifier/
+    ```
+  </Step>
+  
+  <Step title="Create pack.mcmeta">
+    Add the datapack metadata file:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```json pack.mcmeta
+    {
+      "pack": {
+        "pack_format": 41,
+        "description": "My first Lithostitched worldgen modifications"
+      }
+    }
+    ```
+  </Step>
+</Steps>
 
-### Step 2: Deploy your changes
+## Creating Your First Modifier
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+Let's create a modifier that adds poppy flowers to plains biomes.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+### Step 1: Define the Modifier
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Create `data/my_worldgen_pack/lithostitched/worldgen_modifier/add_poppies.json`:
 
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+```json add_poppies.json
+{
+  "type": "lithostitched:add_features",
+  "priority": 1000,
+  "biomes": "minecraft:plains",
+  "features": "minecraft:flower_plain",
+  "step": "vegetal_decoration"
+}
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  The `priority` field determines the order in which modifiers are applied. Lower numbers = higher priority. Default is 1000.
 </Note>
+
+Let's break down the fields:
+
+- `type` - The modifier type. See `Lithostitched.java:103-118` for all available types
+- `priority` - Execution order (optional, defaults to 1000)
+- `biomes` - Target biomes (can be a tag like `#minecraft:is_overworld` or single biome)
+- `features` - Features to add (can be a list or single feature)
+- `step` - Generation step (see [Generation Steps](#generation-steps))
+
+### Step 2: Test the Modifier
+
+<Steps>
+  <Step title="Load the datapack">
+    Launch Minecraft and create a new world, or reload an existing world:
+    ```
+    /reload
+    ```
+  </Step>
+  
+  <Step title="Verify in logs">
+    Check the game logs for Lithostitched modifier loading:
+    ```
+    [lithostitched] Loading worldgen modifiers...
+    [lithostitched] Loaded modifier: my_worldgen_pack:add_poppies
+    ```
+  </Step>
+  
+  <Step title="Generate terrain">
+    Travel to a plains biome and observe the increased flower density.
+  </Step>
+</Steps>
+
+## Understanding Modifier Types
+
+Lithostitched provides many modifier types. Here are the most commonly used:
+
+### Biome Modifiers
+
+#### Add Features
+
+Add placed features to biomes during specific generation steps:
+
+```json
+{
+  "type": "lithostitched:add_features",
+  "biomes": ["minecraft:forest", "minecraft:birch_forest"],
+  "features": "#my_mod:custom_trees",
+  "step": "vegetal_decoration"
+}
+```
+
+#### Remove Features
+
+Remove existing features from biomes:
+
+```json
+{
+  "type": "lithostitched:remove_features",
+  "biomes": "#minecraft:is_ocean",
+  "features": "minecraft:seagrass_simple",
+  "step": "vegetal_decoration"
+}
+```
+
+#### Replace Biome Effects
+
+Customize biome colors, particles, sounds, and music:
+
+```json
+{
+  "type": "lithostitched:replace_effects",
+  "biomes": "minecraft:plains",
+  "effects": {
+    "grass_color": 8439583,
+    "foliage_color": 6726447,
+    "sky_color": 7907327,
+    "fog_color": 12638463
+  }
+}
+```
+
+### Structure Modifiers
+
+#### Add Surface Rules
+
+Add custom terrain generation rules:
+
+```json
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "lithostitched:biome",
+      "biomes": "minecraft:desert"
+    },
+    "then_run": {
+      "type": "minecraft:block",
+      "result_state": {
+        "Name": "minecraft:red_sand"
+      }
+    }
+  }
+}
+```
+
+#### Add Template Pool Elements
+
+Add structure pieces to jigsaw pools:
+
+```json
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "target": "minecraft:village/plains/houses",
+  "elements": [
+    {
+      "element": {
+        "location": "my_mod:village/plains/custom_house",
+        "processors": "minecraft:empty",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      },
+      "weight": 1
+    }
+  ]
+}
+```
+
+## Advanced Example: Bandlands Terrain
+
+Create custom banded terrain similar to badlands:
+
+### Step 1: Define the Bandlands
+
+Create `data/my_worldgen_pack/lithostitched/bandlands/custom_bands.json`:
+
+```json custom_bands.json
+{
+  "base": {
+    "Name": "minecraft:terracotta"
+  },
+  "bands": [
+    {
+      "type": "lithostitched:base",
+      "state": {
+        "Name": "minecraft:red_terracotta"
+      },
+      "height": 3,
+      "offset": 0
+    },
+    {
+      "type": "lithostitched:base",
+      "state": {
+        "Name": "minecraft:orange_terracotta"
+      },
+      "height": 2,
+      "offset": 3
+    },
+    {
+      "type": "lithostitched:repeating",
+      "states": [
+        {
+          "element": {
+            "Name": "minecraft:yellow_terracotta"
+          },
+          "weight": 1
+        },
+        {
+          "element": {
+            "Name": "minecraft:white_terracotta"
+          },
+          "weight": 1
+        }
+      ],
+      "height": 4,
+      "offset": 5,
+      "count": 10
+    }
+  ]
+}
+```
+
+### Step 2: Apply with Surface Rule
+
+Create a modifier that uses the bandlands:
+
+```json use_bandlands.json
+{
+  "type": "lithostitched:add_surface_rule",
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "lithostitched:biome",
+      "biomes": "minecraft:desert"
+    },
+    "then_run": {
+      "type": "lithostitched:bandlands",
+      "options": "my_worldgen_pack:custom_bands"
+    }
+  }
+}
+```
+
+This creates colorful banded terrain in desert biomes, with:
+- 3 blocks of red terracotta at the base
+- 2 blocks of orange terracotta above
+- Repeating pattern of yellow and white terracotta (4 blocks high, repeating 10 times)
+
+## Generation Steps
+
+When using feature modifiers, specify the correct generation step:
+
+| Step | Description | Examples |
+|------|-------------|----------|
+| `raw_generation` | Terrain features | Lakes, springs |
+| `lakes` | Lake generation | - |
+| `local_modifications` | Local terrain edits | Amethyst geodes, icebergs |
+| `underground_structures` | Underground features | Dungeons, monster rooms |
+| `surface_structures` | Surface structures | Villages, temples |
+| `strongholds` | Stronghold generation | - |
+| `underground_ores` | Ore generation | All ores |
+| `underground_decoration` | Underground decorations | Pointed dripstone, roots |
+| `fluid_springs` | Spring features | Water/lava springs |
+| `vegetal_decoration` | Plant features | Trees, flowers, grass |
+| `top_layer_modification` | Final layer changes | Freeze top layer |
+
+## Debugging Tips
+
+<Warning>
+  Worldgen modifiers only affect newly generated chunks. Use `/tp @s ~ ~ ~` to teleport to unexplored areas.
+</Warning>
+
+### Enable Debug Logging
+
+Create `config/lithostitched.json` in your instance folder:
+
+```json lithostitched.json
+{
+  "logDebugMessages": true
+}
+```
+
+This enables detailed logging from `Lithostitched.java:234-238`.
+
+### Common Issues
+
+**Modifier not loading:**
+- Check JSON syntax with a validator
+- Verify file is in correct location: `data/<namespace>/lithostitched/worldgen_modifier/`
+- Check logs for parsing errors
+
+**Changes not visible:**
+- Ensure you're in a newly generated chunk
+- Verify biome selector matches target biomes
+- Check modifier priority doesn't conflict with other mods
+
+**Invalid feature references:**
+- Use `/locate` to verify features exist
+- Check feature namespaces are correct
+- Ensure referenced tags are defined
+
+## Next Steps
+
+Now that you've created your first modifier, explore more advanced features:
+
+<CardGroup cols={2}>
+  <Card title="Modifier Reference" icon="book" href="/api/modifiers/overview">
+    Complete list of all modifier types and their options
+  </Card>
+  <Card title="Surface Rules" icon="mountain" href="/api/surface/surface-rules">
+    Learn about custom terrain generation with surface rules
+  </Card>
+  <Card title="Structure System" icon="building" href="/api/structures/template-pools">
+    Advanced structure customization and processors
+  </Card>
+  <Card title="Common Patterns" icon="code" href="/guides/common-patterns">
+    Real-world examples and use cases
+  </Card>
+</CardGroup>

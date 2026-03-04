@@ -1,0 +1,219 @@
+---
+title: Bandlands
+description: Create stratified terrain layers with customizable bands of blocks
+icon: layer-group
+---
+
+## Overview
+
+Bandlands are Lithostitched's system for creating stratified terrain with horizontal bands of different blocks, similar to Minecraft's Badlands biome but fully customizable. The system uses a 192-block height array filled with different block states based on configured band patterns.
+
+## How Bandlands Work
+
+Bandlands generate terrain in layers by:
+
+1. Creating a 192-block vertical array initialized with a base block
+2. Filling the array with different block patterns using band types
+3. Sampling the array at world positions with noise-based vertical offset
+4. Applying the resulting block state during terrain generation
+
+The band offset noise adds variation by shifting which band appears at a given Y-level, creating natural-looking strata that undulate across the terrain.
+
+## Bandlands Structure
+
+### Java Interface
+
+```java
+public final class Bandlands {
+    private final BlockState base;
+    private final List<Band> bands;
+    private BlockState[] filledBandlands; // 192 blocks
+    
+    public BlockState getBand(SurfaceSystem system, int x, int y, int z) {
+        int offset = (int)Math.round(bandOffsetNoise.getValue(x, 0.0, z) * 4.0);
+        return filledBandlands[(y + offset + 192) % 192];
+    }
+}
+```
+
+Source: `Bandlands.java:14-53`
+
+### JSON Format
+
+```json
+{
+  "type": "lithostitched:bandlands",
+  "base": {
+    "Name": "minecraft:terracotta"
+  },
+  "bands": [
+    {
+      "type": "lithostitched:repeating",
+      "interval": { "type": "uniform", "value": { "min_inclusive": 3, "max_inclusive": 5 } },
+      "size": { "type": "uniform", "value": { "min_inclusive": 1, "max_inclusive": 2 } },
+      "state": { "Name": "minecraft:red_terracotta" }
+    },
+    {
+      "type": "lithostitched:wrapped",
+      "interval": { "type": "uniform", "value": { "min_inclusive": 8, "max_inclusive": 12 } },
+      "max_count": { "type": "constant", "value": 15 },
+      "wrapper_chance": 0.8,
+      "wrapper_state": { "Name": "minecraft:orange_terracotta" },
+      "wrapped_state": { "Name": "minecraft:white_terracotta" }
+    }
+  ]
+}
+```
+
+## Band Types
+
+Bands are processed in order, with later bands overwriting earlier ones where they overlap.
+
+### Base Band
+
+Places random bands of a block throughout the height array.
+
+**Fields:**
+- `count` (IntProvider): Number of bands to place
+- `size` (IntProvider): Size of each band in blocks
+- `state` (BlockState): Block to place
+
+**Example:**
+```json
+{
+  "type": "lithostitched:base",
+  "count": { "type": "uniform", "value": { "min_inclusive": 5, "max_inclusive": 10 } },
+  "size": { "type": "uniform", "value": { "min_inclusive": 2, "max_inclusive": 4 } },
+  "state": { "Name": "minecraft:brown_terracotta" }
+}
+```
+
+**Source:** `BaseBand.java:9-34`
+
+### Repeating Band
+
+Places bands at regular intervals throughout the height array.
+
+**Fields:**
+- `interval` (IntProvider): Spacing between bands
+- `size` (IntProvider): Size of each band in blocks
+- `state` (BlockState): Block to place
+
+**Example:**
+```json
+{
+  "type": "lithostitched:repeating",
+  "interval": { "type": "constant", "value": 4 },
+  "size": { "type": "constant", "value": 1 },
+  "state": { "Name": "minecraft:yellow_terracotta" }
+}
+```
+
+**Source:** `RepeatingBand.java:9-32`
+
+### Wrapped Band
+
+Places a core block with optional wrapper blocks on either side.
+
+**Fields:**
+- `interval` (IntProvider): Spacing between wrapped bands
+- `max_count` (IntProvider): Maximum number of wrapped bands to place
+- `wrapper_chance` (float, 0-1): Probability of wrapper blocks appearing
+- `wrapper_state` (BlockState): Wrapper block
+- `wrapped_state` (BlockState): Core block
+
+**Example:**
+```json
+{
+  "type": "lithostitched:wrapped",
+  "interval": { "type": "uniform", "value": { "min_inclusive": 10, "max_inclusive": 15 } },
+  "max_count": { "type": "constant", "value": 12 },
+  "wrapper_chance": 0.75,
+  "wrapper_state": { "Name": "minecraft:light_gray_terracotta" },
+  "wrapped_state": { "Name": "minecraft:cyan_terracotta" }
+}
+```
+
+**Source:** `WrappedBand.java:12-43`
+
+## Creating Custom Bandlands
+
+### 1. Create a Bandlands Data File
+
+Place in `data/<namespace>/lithostitched/bandlands/<name>.json`:
+
+```json
+{
+  "base": {
+    "Name": "minecraft:sandstone"
+  },
+  "bands": [
+    {
+      "type": "lithostitched:repeating",
+      "interval": { "type": "constant", "value": 6 },
+      "size": { "type": "uniform", "value": { "min_inclusive": 1, "max_inclusive": 2 } },
+      "state": { "Name": "minecraft:red_sandstone" }
+    },
+    {
+      "type": "lithostitched:base",
+      "count": { "type": "constant", "value": 8 },
+      "size": { "type": "constant", "value": 3 },
+      "state": { "Name": "minecraft:smooth_sandstone" }
+    }
+  ]
+}
+```
+
+### 2. Apply with Surface Rule
+
+See [Surface Rules](/api/surface/surface-rules) for how to use bandlands in terrain generation.
+
+## IntProvider Types
+
+Band configurations use Minecraft's IntProvider system for randomization:
+
+**Constant Value:**
+```json
+{ "type": "constant", "value": 5 }
+```
+
+**Uniform Range:**
+```json
+{ 
+  "type": "uniform",
+  "value": {
+    "min_inclusive": 3,
+    "max_inclusive": 7
+  }
+}
+```
+
+**Biased Range:**
+```json
+{
+  "type": "biased_to_bottom",
+  "value": {
+    "min_inclusive": 1,
+    "max_inclusive": 10
+  }
+}
+```
+
+## Tips & Best Practices
+
+<Tip>
+  Use repeating bands for consistent layering and base bands for variation. Combine multiple band types to create complex, natural-looking strata.
+</Tip>
+
+<Warning>
+  Bands are applied in order - later bands will overwrite blocks placed by earlier bands. Order your bands from general patterns to specific accents.
+</Warning>
+
+## Registry Information
+
+- **Registry Type:** Dynamic
+- **Registry Key:** `lithostitched:bandlands`
+- **Band Type Registry:** `lithostitched:bandlands_band_type`
+- **Codec:** `Bandlands.CODEC`
+
+Source: `LithostitchedRegistryKeys.java:24,31`

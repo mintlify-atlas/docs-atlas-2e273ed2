@@ -1,0 +1,575 @@
+---
+title: Placement Conditions
+description: Advanced conditions for controlling feature placement
+---
+
+Placement conditions provide fine-grained control over where features can generate. They're used with the [ConditionPlacement](/api/features/placement-modifiers#conditionplacement) modifier and structure placement systems.
+
+## AllOfPlacementCondition
+
+Requires all sub-conditions to pass (logical AND).
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:in_biome",
+      "biomes": "#minecraft:is_mountain"
+    },
+    {
+      "type": "lithostitched:height_filter",
+      "range_type": "absolute",
+      "permitted_range": {
+        "min_inclusive": 100,
+        "max_inclusive": 200
+      }
+    }
+  ]
+}
+```
+
+### Fields
+
+<ParamField path="conditions" type="List<PlacementCondition>" required>
+  List of conditions that must all pass
+</ParamField>
+
+---
+
+## AnyOfPlacementCondition
+
+Requires at least one sub-condition to pass (logical OR).
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:any_of",
+  "conditions": [
+    {
+      "type": "lithostitched:in_biome",
+      "biomes": "minecraft:desert"
+    },
+    {
+      "type": "lithostitched:in_biome",
+      "biomes": "minecraft:badlands"
+    }
+  ]
+}
+```
+
+### Fields
+
+<ParamField path="conditions" type="List<PlacementCondition>" required>
+  List of conditions where at least one must pass
+</ParamField>
+
+---
+
+## GridPlacementCondition
+
+Evaluates a condition at multiple points in a grid pattern.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:grid",
+  "radius": 16,
+  "distance_between_points": 4,
+  "condition": {
+    "type": "lithostitched:in_biome",
+    "biomes": "minecraft:ocean"
+  },
+  "allowed_count": {
+    "min_inclusive": 5,
+    "max_inclusive": 10
+  }
+}
+```
+
+### Fields
+
+<ParamField path="radius" type="int" required>
+  Grid radius in blocks (must be positive)
+</ParamField>
+
+<ParamField path="distance_between_points" type="int" required>
+  Spacing between grid sample points (must be positive)
+</ParamField>
+
+<ParamField path="condition" type="PlacementCondition" required>
+  Condition to test at each grid point
+</ParamField>
+
+<ParamField path="allowed_count" type="InclusiveRange<Integer>" required>
+  Required number of passing grid points
+</ParamField>
+
+### Example Use Cases
+
+**Ocean island detection:**
+```json
+{
+  "type": "lithostitched:grid",
+  "radius": 32,
+  "distance_between_points": 8,
+  "condition": {
+    "type": "lithostitched:in_biome",
+    "biomes": "#minecraft:is_ocean"
+  },
+  "allowed_count": {
+    "min_inclusive": 10,
+    "max_inclusive": 15
+  }
+}
+```
+Requires 10-15 ocean biome samples in a 32-block radius.
+
+---
+
+## HeightFilterPlacementCondition
+
+Filters placement based on absolute or heightmap-relative Y coordinates.
+
+### Configuration
+
+**Absolute height:**
+```json
+{
+  "type": "lithostitched:height_filter",
+  "range_type": "absolute",
+  "permitted_range": {
+    "min_inclusive": -64,
+    "max_inclusive": 0
+  }
+}
+```
+
+**Heightmap-relative:**
+```json
+{
+  "type": "lithostitched:height_filter",
+  "range_type": "heightmap_relative",
+  "heightmap": "OCEAN_FLOOR_WG",
+  "permitted_range": {
+    "min_inclusive": -10,
+    "max_inclusive": 10
+  }
+}
+```
+
+### Fields
+
+<ParamField path="range_type" type="RangeType" required>
+  - `absolute`: Uses world Y coordinates
+  - `heightmap_relative`: Relative to heightmap value
+</ParamField>
+
+<ParamField path="heightmap" type="Heightmap.Types" optional>
+  Required for `heightmap_relative` mode. Available types:
+  - `WORLD_SURFACE_WG`: World generation surface
+  - `WORLD_SURFACE`: Actual world surface
+  - `OCEAN_FLOOR_WG`: Ocean floor (world generation)
+  - `OCEAN_FLOOR`: Actual ocean floor
+  - `MOTION_BLOCKING`: Blocks that block motion
+  - `MOTION_BLOCKING_NO_LEAVES`: Motion blocking excluding leaves
+</ParamField>
+
+<ParamField path="permitted_range" type="InclusiveRange<Integer>" required>
+  Allowed Y coordinate range
+</ParamField>
+
+### Example Use Cases
+
+**Underground only:**
+```json
+{
+  "type": "lithostitched:height_filter",
+  "range_type": "absolute",
+  "permitted_range": {
+    "min_inclusive": -64,
+    "max_inclusive": 0
+  }
+}
+```
+
+**Near surface:**
+```json
+{
+  "type": "lithostitched:height_filter",
+  "range_type": "heightmap_relative",
+  "heightmap": "WORLD_SURFACE_WG",
+  "permitted_range": {
+    "min_inclusive": -5,
+    "max_inclusive": 5
+  }
+}
+```
+Places within 5 blocks of the surface.
+
+**Ocean floor:**
+```json
+{
+  "type": "lithostitched:height_filter",
+  "range_type": "heightmap_relative",
+  "heightmap": "OCEAN_FLOOR_WG",
+  "permitted_range": {
+    "min_inclusive": 0,
+    "max_inclusive": 0
+  }
+}
+```
+Only at ocean floor level.
+
+---
+
+## InBiomePlacementCondition
+
+Checks if the position is in specified biomes.
+
+### Configuration
+
+**Single biome:**
+```json
+{
+  "type": "lithostitched:in_biome",
+  "biomes": "minecraft:desert"
+}
+```
+
+**Multiple biomes:**
+```json
+{
+  "type": "lithostitched:in_biome",
+  "biomes": [
+    "minecraft:desert",
+    "minecraft:badlands"
+  ]
+}
+```
+
+**Biome tag:**
+```json
+{
+  "type": "lithostitched:in_biome",
+  "biomes": "#minecraft:is_ocean"
+}
+```
+
+### Fields
+
+<ParamField path="biomes" type="HolderSet<Biome>" required>
+  Biome ID, list of IDs, or biome tag
+</ParamField>
+
+---
+
+## MultipleOfPlacementCondition
+
+Requires a specific count of sub-conditions to pass.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:multiple_of",
+  "conditions": [
+    {
+      "type": "lithostitched:in_biome",
+      "biomes": "minecraft:plains"
+    },
+    {
+      "type": "lithostitched:height_filter",
+      "range_type": "absolute",
+      "permitted_range": {
+        "min_inclusive": 60,
+        "max_inclusive": 80
+      }
+    },
+    {
+      "type": "lithostitched:sample_noise_router",
+      "target": "temperature",
+      "min_inclusive": 0.5
+    }
+  ],
+  "allowed_count": {
+    "min_inclusive": 2,
+    "max_inclusive": 3
+  }
+}
+```
+
+### Fields
+
+<ParamField path="conditions" type="List<PlacementCondition>" required>
+  List of conditions to evaluate
+</ParamField>
+
+<ParamField path="allowed_count" type="InclusiveRange<Integer>" required>
+  Required number of passing conditions
+</ParamField>
+
+### Example Use Cases
+
+**At least 2 of 3 conditions:**
+```json
+{
+  "allowed_count": {
+    "min_inclusive": 2,
+    "max_inclusive": 3
+  }
+}
+```
+
+**Exactly 1 condition:**
+```json
+{
+  "allowed_count": {
+    "min_inclusive": 1,
+    "max_inclusive": 1
+  }
+}
+```
+
+---
+
+## NotPlacementCondition
+
+Inverts a condition (logical NOT).
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:not",
+  "condition": {
+    "type": "lithostitched:in_biome",
+    "biomes": "#minecraft:is_ocean"
+  }
+}
+```
+
+### Fields
+
+<ParamField path="condition" type="PlacementCondition" required>
+  Condition to invert
+</ParamField>
+
+---
+
+## OffsetPlacementCondition
+
+Evaluates a condition at an offset position.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:offset",
+  "condition": {
+    "type": "lithostitched:in_biome",
+    "biomes": "minecraft:ocean"
+  },
+  "offset": {
+    "x": 0,
+    "y": -10,
+    "z": 0
+  }
+}
+```
+
+### Fields
+
+<ParamField path="condition" type="PlacementCondition" required>
+  Condition to test at offset position
+</ParamField>
+
+<ParamField path="offset" type="BlockPos" required>
+  Position offset (x, y, z)
+</ParamField>
+
+---
+
+## SampleDensityPlacementCondition
+
+Samples a density function and checks value range.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:sample_density",
+  "density_function": "minecraft:overworld/caves/entrances",
+  "min_inclusive": 0.0,
+  "max_inclusive": 0.5
+}
+```
+
+### Fields
+
+<ParamField path="density_function" type="Holder<DensityFunction>" required>
+  Reference to a density function
+</ParamField>
+
+<ParamField path="min_inclusive" type="double" optional>
+  Minimum density value (inclusive)
+</ParamField>
+
+<ParamField path="max_inclusive" type="double" optional>
+  Maximum density value (inclusive)
+</ParamField>
+
+<Note>
+Only works with `NoiseBasedChunkGenerator`. Returns false for other generator types.
+</Note>
+
+---
+
+## SampleNoiseRouterPlacementCondition
+
+Samples a noise router target and checks value range.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:sample_noise_router",
+  "target": "temperature",
+  "min_inclusive": 0.5,
+  "max_inclusive": 1.0
+}
+```
+
+### Fields
+
+<ParamField path="target" type="NoiseRouterTarget" required>
+  Noise router target to sample. Available targets:
+  - `barrier`
+  - `fluid_level_floodedness`
+  - `fluid_level_spread`
+  - `lava`
+  - `temperature`
+  - `vegetation`
+  - `continents`
+  - `erosion`
+  - `depth`
+  - `ridges`
+  - `initial_density_without_jaggedness`
+  - `final_density`
+  - `vein_toggle`
+  - `vein_ridged`
+  - `vein_gap`
+</ParamField>
+
+<ParamField path="min_inclusive" type="double" optional>
+  Minimum noise value (inclusive)
+</ParamField>
+
+<ParamField path="max_inclusive" type="double" optional>
+  Maximum noise value (inclusive)
+</ParamField>
+
+<Note>
+Only works with `NoiseBasedChunkGenerator`. Returns false for other generator types.
+</Note>
+
+---
+
+## TruePlacementCondition
+
+Always passes. Useful as a placeholder or default.
+
+### Configuration
+
+```json
+{
+  "type": "lithostitched:true"
+}
+```
+
+## Complex Examples
+
+### Mountain Peak Detection
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:in_biome",
+      "biomes": "#minecraft:is_mountain"
+    },
+    {
+      "type": "lithostitched:height_filter",
+      "range_type": "heightmap_relative",
+      "heightmap": "WORLD_SURFACE_WG",
+      "permitted_range": {
+        "min_inclusive": -2,
+        "max_inclusive": 2
+      }
+    },
+    {
+      "type": "lithostitched:grid",
+      "radius": 8,
+      "distance_between_points": 2,
+      "condition": {
+        "type": "lithostitched:height_filter",
+        "range_type": "absolute",
+        "permitted_range": {
+          "min_inclusive": 150,
+          "max_inclusive": 320
+        }
+      },
+      "allowed_count": {
+        "min_inclusive": 12,
+        "max_inclusive": 25
+      }
+    }
+  ]
+}
+```
+
+This complex condition:
+1. Requires mountain biome
+2. Must be near the surface
+3. Samples surrounding area to ensure it's elevated
+
+### Cave Entrance Detection
+
+```json
+{
+  "type": "lithostitched:all_of",
+  "conditions": [
+    {
+      "type": "lithostitched:sample_density",
+      "density_function": "minecraft:overworld/caves/entrances",
+      "min_inclusive": 0.3
+    },
+    {
+      "type": "lithostitched:not",
+      "condition": {
+        "type": "lithostitched:in_biome",
+        "biomes": "#minecraft:is_ocean"
+      }
+    }
+  ]
+}
+```
+
+## Source References
+
+- AllOfPlacementCondition: `AllOfPlacementCondition.java:9`
+- AnyOfPlacementCondition: `AnyOfPlacementCondition.java:8`
+- GridPlacementCondition: `GridPlacementCondition.java:10`
+- HeightFilterPlacementCondition: `HeightFilterPlacementCondition.java:15`
+- InBiomePlacementCondition: `InBiomePlacementCondition.java:10`
+- MultipleOfPlacementCondition: `MultipleOfPlacementCondition.java:11`
+- NotPlacementCondition: `NotPlacementCondition.java:6`
+- OffsetPlacementCondition: `OffsetPlacementCondition.java:7`
+- SampleDensityPlacementCondition: `SampleDensityPlacementCondition.java:14`
+- SampleNoiseRouterPlacementCondition: `SampleNoiseRouterPlacementCondition.java:14`
+- TruePlacementCondition: `TruePlacementCondition.java:6`

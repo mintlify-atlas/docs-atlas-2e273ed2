@@ -1,0 +1,514 @@
+---
+title: 'Data-Driven Configuration'
+description: 'Create JSON-based worldgen modifiers using Minecraft data packs'
+---
+
+## Overview
+
+Lithostitched's worldgen customization is entirely data-driven through JSON files in Minecraft data packs. This allows you to modify world generation without writing any Java code, making it accessible to modpack developers and server administrators.
+
+<Info>
+All worldgen modifiers are loaded from the `data/<namespace>/lithostitched/worldgen_modifier/` directory in data packs.
+</Info>
+
+## File Structure
+
+Worldgen modifier files follow Minecraft's standard data pack structure:
+
+```
+data/
+└── <namespace>/
+    └── lithostitched/
+        └── worldgen_modifier/
+            ├── my_modifier.json
+            ├── another_modifier.json
+            └── subfolder/
+                └── nested_modifier.json
+```
+
+<Tabs>
+  <Tab title="Resource Location">
+    Each file creates a modifier with the resource location:
+    ```
+    <namespace>:lithostitched/worldgen_modifier/<path>/<filename>
+    ```
+    
+    For example:
+    - `data/mypack/lithostitched/worldgen_modifier/add_villages.json`
+    - Becomes: `mypack:add_villages`
+  </Tab>
+  
+  <Tab title="Namespace">
+    The namespace is typically:
+    - Your mod ID for mods
+    - Your data pack name for data packs
+    - Avoid using `minecraft` namespace (reserved for vanilla)
+  </Tab>
+</Tabs>
+
+## Basic JSON Structure
+
+Every modifier JSON file must have a `type` field that specifies which modifier type to use:
+
+```json
+{
+  "type": "lithostitched:<modifier_type>",
+  "priority": 1000,
+  // ... modifier-specific fields
+}
+```
+
+### Required Fields
+
+<ParamField path="type" type="string" required>
+  The modifier type identifier (e.g., `lithostitched:add_surface_rule`)
+</ParamField>
+
+### Optional Fields
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution order priority. Lower values execute first. Common values:
+  - 500-900: Foundational changes
+  - 1000: Default modifications
+  - 2000: Removals and overrides
+</ParamField>
+
+## Example Modifiers
+
+### Internal System Modifier
+
+This minimal modifier is used internally by Lithostitched:
+
+```json /home/daytona/workspace/source/src/common/main/resources/data/lithostitched/lithostitched/worldgen_modifier/compile_raw_templates.json
+{
+  "type": "lithostitched:internal/compile_raw_templates"
+}
+```
+
+<Note>
+Internal modifiers (prefixed with `internal/`) are used by Lithostitched itself and typically don't require additional configuration.
+</Note>
+
+### Pool Aliases Modifier
+
+This example sets up pool aliases for Trial Chambers structure spawners:
+
+```json /home/daytona/workspace/source/src/common/main/resources/data/lithostitched/lithostitched/worldgen_modifier/set_trial_chambers_pool_aliases.json
+{
+  "type": "lithostitched:set_pool_aliases",
+  "structures": "minecraft:trial_chambers",
+  "pool_aliases": [
+    {
+      "type": "lithostitched:internal/random_entries",
+      "aliases": [
+        "minecraft:trial_chambers/spawner/contents/ranged",
+        "minecraft:trial_chambers/spawner/contents/slow_ranged"
+      ],
+      "pools": [
+        "#lithostitched:trial_spawner/ranged",
+        "#lithostitched:trial_spawner/slow_ranged"
+      ]
+    },
+    {
+      "type": "lithostitched:internal/random_entries",
+      "aliases": [
+        "minecraft:trial_chambers/spawner/contents/melee"
+      ],
+      "pools": [
+        "#lithostitched:trial_spawner/melee"
+      ]
+    },
+    {
+      "type": "lithostitched:internal/random_entries",
+      "aliases": [
+        "minecraft:trial_chambers/spawner/contents/small_melee"
+      ],
+      "pools": [
+        "#lithostitched:trial_spawner/small_melee"
+      ]
+    }
+  ],
+  "append": false
+}
+```
+
+<Accordion title="Understanding this example">
+  <ParamField path="structures" type="string">
+    The structure to modify (supports tags with `#` prefix)
+  </ParamField>
+  
+  <ParamField path="pool_aliases" type="array">
+    List of pool alias configurations
+  </ParamField>
+  
+  <ParamField path="append" type="boolean" default="false">
+    Whether to append to or replace existing aliases
+  </ParamField>
+</Accordion>
+
+## Common Modifier Types
+
+### Add Surface Rule
+
+Adds custom surface rules to dimension generation:
+
+```json Add Desert Glass Surface
+{
+  "type": "lithostitched:add_surface_rule",
+  "priority": 1000,
+  "levels": [
+    "minecraft:overworld"
+  ],
+  "surface_rule": {
+    "type": "minecraft:condition",
+    "if_true": {
+      "type": "minecraft:biome",
+      "biome_is": [
+        "minecraft:desert"
+      ]
+    },
+    "then_run": {
+      "type": "minecraft:block",
+      "result_state": {
+        "Name": "minecraft:glass"
+      }
+    }
+  }
+}
+```
+
+### Remove Structure Set Entries
+
+Removes structures from structure sets:
+
+```json Remove Villages from Plains
+{
+  "type": "lithostitched:remove_structure_set_entries",
+  "priority": 2000,
+  "structure_sets": [
+    "minecraft:villages"
+  ],
+  "structures": [
+    "minecraft:village_plains"
+  ]
+}
+```
+
+<Warning>
+Removal modifiers should use higher priority values (1500-2000) to execute after addition modifiers.
+</Warning>
+
+### Add Template Pool Elements
+
+Adds new structure pieces to jigsaw template pools:
+
+```json Add Custom Village House
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "priority": 1000,
+  "pools": [
+    {
+      "pool": "minecraft:village/plains/houses",
+      "elements": [
+        {
+          "weight": 5,
+          "element": {
+            "location": "mypack:village/plains/custom_house_1",
+            "processors": "minecraft:empty",
+            "projection": "rigid",
+            "element_type": "minecraft:single_pool_element"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Wrap Density Function
+
+Modifies dimension density functions:
+
+```json Flatten Terrain
+{
+  "type": "lithostitched:wrap_density_function",
+  "priority": 1000,
+  "dimensions": [
+    "minecraft:overworld"
+  ],
+  "target": "minecraft:overworld/base_3d_noise",
+  "wrapper": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "lithostitched:original_marker"
+    },
+    "argument2": 0.5
+  }
+}
+```
+
+## Data Pack Integration
+
+<Steps>
+  <Step title="Create Data Pack Structure">
+    Create the directory structure:
+    ```bash
+    mypack/
+    ├── pack.mcmeta
+    └── data/
+        └── mypack/
+            └── lithostitched/
+                └── worldgen_modifier/
+    ```
+  </Step>
+  
+  <Step title="Create pack.mcmeta">
+    Define your pack metadata:
+    ```json pack.mcmeta
+    {
+      "pack": {
+        "pack_format": 48,
+        "description": "My Lithostitched Modifiers"
+      }
+    }
+    ```
+    <Note>
+    Check the [Minecraft Wiki](https://minecraft.wiki/w/Pack_format) for the correct pack_format version.
+    </Note>
+  </Step>
+  
+  <Step title="Add Modifier Files">
+    Create your modifier JSON files in the `worldgen_modifier/` directory
+  </Step>
+  
+  <Step title="Install Data Pack">
+    Place your data pack in:
+    - `<world>/datapacks/` for single-player worlds
+    - Server's `datapacks/` folder for multiplayer servers
+  </Step>
+  
+  <Step title="Reload and Test">
+    Use `/reload` to reload data packs, then create a new world to see changes
+  </Step>
+</Steps>
+
+<Warning>
+Worldgen changes only affect **newly generated chunks**. Existing chunks will not be modified.
+</Warning>
+
+## Debugging and Validation
+
+### Enable Debug Logging
+
+Modify the Lithostitched config file to enable debug messages:
+
+```json config/lithostitched.json
+{
+  "breaks_seed_parity": true,
+  "log_debug_messages": true
+}
+```
+
+<Info>
+With debug logging enabled, you'll see messages like:
+```
+[Lithostitched] Applying modifier with id: mypack:my_modifier
+```
+</Info>
+
+### Common JSON Errors
+
+<AccordionGroup>
+  <Accordion title="Invalid codec error">
+    **Cause**: JSON structure doesn't match the codec definition
+    
+    **Solution**: Check that all required fields are present and have correct types
+  </Accordion>
+  
+  <Accordion title="Unknown modifier type">
+    **Cause**: The `type` field references a non-existent modifier type
+    
+    **Solution**: Verify the modifier type is registered and spelled correctly
+  </Accordion>
+  
+  <Accordion title="Registry not found">
+    **Cause**: Referencing a resource that doesn't exist (e.g., wrong structure ID)
+    
+    **Solution**: Check that all referenced resources exist and use correct namespaces
+  </Accordion>
+  
+  <Accordion title="Modifiers not applying">
+    **Cause**: Priority conflicts or modifier order issues
+    
+    **Solution**: Adjust priority values and check debug logs for application order
+  </Accordion>
+</AccordionGroup>
+
+## Resource References
+
+### Using Tags
+
+Many fields support tag references using the `#` prefix:
+
+```json
+{
+  "structure_sets": [
+    "#minecraft:village"
+  ]
+}
+```
+
+### Using Direct References
+
+Or reference specific resources directly:
+
+```json
+{
+  "structures": [
+    "minecraft:village_plains",
+    "minecraft:village_desert"
+  ]
+}
+```
+
+### Holder Sets
+
+Some fields accept either a single value or a list:
+
+<CodeGroup>
+```json Single Value
+{
+  "structures": "minecraft:trial_chambers"
+}
+```
+
+```json List of Values
+{
+  "structures": [
+    "minecraft:trial_chambers",
+    "minecraft:ancient_city"
+  ]
+}
+```
+
+```json Tag Reference
+{
+  "structures": "#mypack:custom_structures"
+}
+```
+</CodeGroup>
+
+## Advanced Patterns
+
+### Conditional Modifiers
+
+Combine modifiers with conditions to create complex behaviors:
+
+```json Conditional Surface Rule
+{
+  "type": "lithostitched:add_surface_rule",
+  "priority": 1000,
+  "levels": ["minecraft:overworld"],
+  "surface_rule": {
+    "type": "minecraft:sequence",
+    "sequence": [
+      {
+        "type": "minecraft:condition",
+        "if_true": {
+          "type": "lithostitched:all_of",
+          "conditions": [
+            {
+              "type": "lithostitched:biome",
+              "biome_is": ["minecraft:plains"]
+            },
+            {
+              "type": "lithostitched:slope",
+              "min": 0.0,
+              "max": 0.1
+            }
+          ]
+        },
+        "then_run": {
+          "type": "minecraft:block",
+          "result_state": {
+            "Name": "minecraft:grass_block"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### Modifier Chains
+
+Use priorities to create sequences of related modifiers:
+
+```json Modifier Chain
+// 1. First, add the structure (priority 900)
+{
+  "type": "lithostitched:add_structure_set_entries",
+  "priority": 900,
+  "structure_sets": ["mypack:custom_set"],
+  "entries": [...]
+}
+
+// 2. Then, modify its template pools (priority 1000)
+{
+  "type": "lithostitched:add_template_pool_elements",
+  "priority": 1000,
+  "pools": [...]
+}
+
+// 3. Finally, set spawn conditions (priority 1100)
+{
+  "type": "lithostitched:set_structure_spawn_condition",
+  "priority": 1100,
+  "structures": ["mypack:custom_structure"],
+  "condition": {...}
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Descriptive Names" icon="tag">
+    Name your modifier files descriptively:
+    - ✅ `add_desert_temples.json`
+    - ❌ `modifier1.json`
+  </Card>
+  
+  <Card title="Organize by Category" icon="folder">
+    Group related modifiers in subfolders:
+    ```
+    worldgen_modifier/
+    ├── structures/
+    ├── terrain/
+    └── biomes/
+    ```
+  </Card>
+  
+  <Card title="Comment with Descriptions" icon="comment">
+    While JSON doesn't support comments, use descriptive type names and consider maintaining a separate README
+  </Card>
+  
+  <Card title="Test Incrementally" icon="vial">
+    Test each modifier individually before combining them to isolate issues
+  </Card>
+</CardGroup>
+
+<Note>
+Always test worldgen changes in a new world. Existing chunks won't be affected by data pack changes.
+</Note>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Modifiers" icon="gear" href="/concepts/modifiers">
+    Learn about modifier interface and priority system
+  </Card>
+  
+  <Card title="Registry System" icon="book" href="/concepts/registry-system">
+    Understand how types are registered
+  </Card>
+</CardGroup>

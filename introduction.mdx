@@ -1,0 +1,116 @@
+---
+title: Introduction
+description: Learn about Lithostitched, a powerful Minecraft library mod for data-driven worldgen customization
+---
+
+Lithostitched is a Minecraft library mod focused on adding new data-driven compatibility and configurability enhancements to worldgen. It provides extensive tools for modpack creators and mod developers to customize terrain generation, structures, and biomes without writing code.
+
+## What is Lithostitched?
+
+Lithostitched extends Minecraft's worldgen system with:
+
+- **Data-driven worldgen modifiers** - Modify biomes, structures, features, and terrain using JSON configuration
+- **Custom terrain generation** - Create unique terrain patterns with the Bandlands system
+- **Enhanced structure templates** - Advanced structure processing and template pool management
+- **Cross-loader compatibility** - Works seamlessly on both Fabric and NeoForge
+
+## Key Features
+
+### Worldgen Modifiers
+
+Lithostitched's core feature is its comprehensive modifier system. You can modify virtually any aspect of worldgen through JSON data:
+
+- Add or remove biome features and mob spawns
+- Replace biome visual effects (colors, particles, sounds)
+- Modify surface rules and density functions
+- Configure structure templates and pool elements
+- Set structure spawn conditions
+
+All modifiers are defined in datapacks using the `lithostitched:worldgen_modifier` type.
+
+### Bandlands Terrain System
+
+Create custom banded terrain similar to Minecraft's badlands biome, but with full control over:
+
+- Block patterns and colors
+- Band heights and repetition
+- Noise-based variation
+
+Defined using the `lithostitched:bandlands` surface rule type.
+
+### Enhanced Structure Templates
+
+Extend Minecraft's structure system with:
+
+- **Structure processors** - Conditional block replacement, random variations, scheduled ticks
+- **Pool elements** - Delegating elements, guaranteed placement, limited counts
+- **Pool aliases** - Dynamic structure pool substitution
+- **Placement conditions** - Fine-grained control over where structures generate
+
+### Cross-Loader Support
+
+Lithostitched is built with Cloche, providing true cross-loader compatibility:
+
+- Single codebase for Fabric and NeoForge
+- Supports Minecraft 1.21.1 and 1.21.11
+- Consistent API across platforms
+- No loader-specific code required
+
+## Why Use Lithostitched?
+
+### For Modpack Creators
+
+- **No coding required** - All customization through JSON datapacks
+- **Fine-grained control** - Modify specific aspects without replacing entire systems
+- **Compatibility first** - Works with other worldgen mods through prioritized modifiers
+- **Debugging support** - Built-in logging for troubleshooting worldgen changes
+
+### For Mod Developers
+
+- **Extensible API** - Register custom modifiers, processors, and features
+- **Rich feature set** - Block predicates, state providers, placement modifiers, and more
+- **Type-safe** - Codec-based serialization with compile-time type checking
+- **Well-documented** - Clear registration methods in `Lithostitched.java:103-231`
+
+## Architecture Overview
+
+Lithostitched follows a modular architecture:
+
+```
+Lithostitched
+├── Modifiers (worldgen_modifier)
+│   ├── Biome modifiers (add/remove features, spawns, effects)
+│   ├── Structure modifiers (templates, pools, processors)
+│   └── Terrain modifiers (surface rules, density functions)
+├── Surface Rules
+│   ├── Bandlands (custom banded terrain)
+│   ├── Reference (reusable rule definitions)
+│   └── Transient merged (dynamic rule composition)
+├── Structure Extensions
+│   ├── Processors (conditional block placement)
+│   ├── Pool elements (advanced template handling)
+│   └── Placement conditions (spawn control)
+└── Utilities
+    ├── Block predicates
+    ├── State providers
+    └── Placement modifiers
+```
+
+## Version Information
+
+- **Current Version**: 1.5.8+beta1
+- **Minecraft Versions**: 1.21.1, 1.21.11
+- **Mod Loaders**: Fabric, NeoForge
+- **License**: MIT
+- **Author**: Apollo
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up Lithostitched in your development environment
+  </Card>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Create your first worldgen modifier in minutes
+  </Card>
+</CardGroup>

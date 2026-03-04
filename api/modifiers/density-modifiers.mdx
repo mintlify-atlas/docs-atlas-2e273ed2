@@ -1,0 +1,527 @@
+---
+title: Density Modifiers
+description: Modifiers for density functions and noise routers
+icon: wave-square
+---
+
+## Overview
+
+Density modifiers allow you to modify Minecraft's terrain generation at a fundamental level by wrapping density functions and noise routers. Density functions determine the 3D shape of terrain, caves, and other world features.
+
+<Warning>
+  Density function modification is an advanced topic requiring understanding of Minecraft's noise-based terrain generation. Incorrect modifications can cause terrain artifacts or performance issues.
+</Warning>
+
+## Wrap Density Function
+
+Wraps an existing density function with a custom density function, allowing modification of terrain shape.
+
+```java
+public record WrapDensityFunctionModifier(
+    int priority,
+    Holder<DensityFunction> targetFunction,
+    Holder<DensityFunction> wrapperFunction
+) implements Modifier
+```
+
+### How It Works
+
+The modifier replaces the target density function's value with a `MergedDensityFunction` that applies the wrapper function. The wrapper can reference the original function using marker density functions:
+
+- `lithostitched:wrapped_marker` - References the current/wrapped value
+- `lithostitched:original_marker` - References the original unwrapped value
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:wrap_density_function"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority. Lower values execute first, affecting wrapper nesting order.
+</ParamField>
+
+<ParamField path="target_function" type="string" required>
+  Registry ID of the density function to wrap. Must be a reference to a registered density function.
+</ParamField>
+
+<ParamField path="wrapper_function" type="object | string" required>
+  The density function to wrap around the target. Can be:
+  - A registry ID (string) referencing another density function
+  - An inline density function definition (object)
+  
+  Use marker functions within the wrapper to reference the target:
+  - `lithostitched:wrapped_marker` - The wrapped/modified value
+  - `lithostitched:original_marker` - The original value before any wrapping
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+```json Amplify Terrain Height
+{
+  "type": "lithostitched:wrap_density_function",
+  "priority": 1000,
+  "target_function": "minecraft:overworld/base_3d_noise",
+  "wrapper_function": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "lithostitched:wrapped_marker"
+    },
+    "argument2": {
+      "type": "minecraft:constant",
+      "argument": 1.5
+    }
+  }
+}
+```
+
+```json Add Offset to Continents
+{
+  "type": "lithostitched:wrap_density_function",
+  "target_function": "minecraft:overworld/continents",
+  "wrapper_function": {
+    "type": "minecraft:add",
+    "argument1": {
+      "type": "lithostitched:wrapped_marker"
+    },
+    "argument2": {
+      "type": "minecraft:constant",
+      "argument": 0.2
+    }
+  }
+}
+```
+
+```json Blend Original and Modified
+{
+  "type": "lithostitched:wrap_density_function",
+  "target_function": "minecraft:overworld/erosion",
+  "wrapper_function": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "minecraft:add",
+      "argument1": {
+        "type": "lithostitched:original_marker"
+      },
+      "argument2": {
+        "type": "lithostitched:wrapped_marker"
+      }
+    },
+    "argument2": {
+      "type": "minecraft:constant",
+      "argument": 0.5
+    }
+  }
+}
+```
+
+```json Reference External Wrapper
+{
+  "type": "lithostitched:wrap_density_function",
+  "target_function": "minecraft:overworld/depth",
+  "wrapper_function": "mymod:depth_amplifier"
+}
+```
+</CodeGroup>
+
+## Wrap Noise Router
+
+Wraps specific targets in a dimension's noise router, modifying how density functions are used for terrain generation.
+
+```java
+public record WrapNoiseRouterModifier(
+    int priority,
+    ResourceKey<Level> dimension,
+    NoiseRouterTarget target,
+    Holder<DensityFunction> wrapperFunction
+) implements Modifier
+```
+
+### How It Works
+
+Noise routers contain multiple density functions for different purposes (continents, erosion, depth, etc.). This modifier wraps one of those targets with a custom density function, allowing targeted terrain modifications.
+
+### Parameters
+
+<ParamField path="type" type="string" required>
+  Must be `"lithostitched:wrap_noise_router"`
+</ParamField>
+
+<ParamField path="priority" type="integer" default="1000">
+  Execution priority. Multiple modifiers with the same target are applied in priority order.
+</ParamField>
+
+<ParamField path="dimension" type="string" required>
+  Registry ID of the dimension to modify.
+  
+  Common values:
+  - `"minecraft:overworld"`
+  - `"minecraft:the_nether"`
+  - `"minecraft:the_end"`
+</ParamField>
+
+<ParamField path="target" type="string" required>
+  Which noise router target to wrap.
+  
+  Available targets:
+  - `barrier` - Barrier noise for aquifer barriers
+  - `fluid_level_floodedness` - Aquifer flood level
+  - `fluid_level_spread` - Aquifer spread
+  - `lava` - Lava level noise
+  - `temperature` - Temperature noise
+  - `vegetation` - Vegetation noise
+  - `continents` - Continental shape
+  - `erosion` - Erosion shaping
+  - `depth` - Terrain depth
+  - `ridges` - Ridge formations
+  - `initial_density` - Initial 3D terrain density
+  - `final_density` - Final terrain density (after caves)
+  - `vein_toggle` - Ore vein toggle
+  - `vein_ridged` - Ore vein ridges
+  - `vein_gap` - Ore vein gaps
+</ParamField>
+
+<ParamField path="wrapper_function" type="object | string" required>
+  The density function to wrap around the target. Use `lithostitched:wrapped_marker` to reference the original target value.
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+```json Modify Continents
+{
+  "type": "lithostitched:wrap_noise_router",
+  "priority": 1000,
+  "dimension": "minecraft:overworld",
+  "target": "continents",
+  "wrapper_function": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "lithostitched:wrapped_marker"
+    },
+    "argument2": {
+      "type": "minecraft:constant",
+      "argument": 1.2
+    }
+  }
+}
+```
+
+```json Smooth Erosion
+{
+  "type": "lithostitched:wrap_noise_router",
+  "dimension": "minecraft:overworld",
+  "target": "erosion",
+  "wrapper_function": {
+    "type": "minecraft:quarter_negative",
+    "argument": {
+      "type": "lithostitched:wrapped_marker"
+    }
+  }
+}
+```
+
+```json Amplify Final Density
+{
+  "type": "lithostitched:wrap_noise_router",
+  "dimension": "minecraft:overworld",
+  "target": "final_density",
+  "wrapper_function": {
+    "type": "minecraft:add",
+    "argument1": {
+      "type": "lithostitched:wrapped_marker"
+    },
+    "argument2": {
+      "type": "minecraft:noise",
+      "noise": "minecraft:offset",
+      "xz_scale": 0.25,
+      "y_scale": 0.0
+    }
+  }
+}
+```
+
+```json Modify Temperature
+{
+  "type": "lithostitched:wrap_noise_router",
+  "dimension": "minecraft:overworld",
+  "target": "temperature",
+  "wrapper_function": {
+    "type": "minecraft:clamp",
+    "input": {
+      "type": "minecraft:add",
+      "argument1": {
+        "type": "lithostitched:wrapped_marker"
+      },
+      "argument2": {
+        "type": "minecraft:constant",
+        "argument": 0.1
+      }
+    },
+    "min": -1.0,
+    "max": 1.0
+  }
+}
+```
+</CodeGroup>
+
+## Marker Density Functions
+
+Lithostitched provides special marker density functions for referencing wrapped values:
+
+### Wrapped Marker
+
+References the current wrapped/modified value of the density function.
+
+```java
+public record WrappedMarkerDensityFunction() implements DensityFunction, MarkerFunction
+```
+
+<CodeGroup>
+```json Wrapped Marker
+{
+  "type": "lithostitched:wrapped_marker"
+}
+```
+</CodeGroup>
+
+### Original Marker
+
+References the original unwrapped value before any modifications.
+
+```java
+public record OriginalMarkerDensityFunction() implements DensityFunction, MarkerFunction
+```
+
+<CodeGroup>
+```json Original Marker
+{
+  "type": "lithostitched:original_marker"
+}
+```
+</CodeGroup>
+
+## Noise Router Targets
+
+Detailed explanation of each noise router target:
+
+<AccordionGroup>
+  <Accordion title="continents">
+    Controls large-scale continental landmass shapes. Higher values create more land, lower values create more ocean.
+    
+    **Use cases:** Adjust ocean/land ratio, create more dramatic coastlines
+  </Accordion>
+  
+  <Accordion title="erosion">
+    Controls terrain erosion patterns affecting valleys, mountains, and plains.
+    
+    **Use cases:** Make terrain more rugged or smoother, adjust valley depth
+  </Accordion>
+  
+  <Accordion title="depth">
+    Affects the depth/height offset of terrain.
+    
+    **Use cases:** Raise or lower overall terrain height, create floating islands
+  </Accordion>
+  
+  <Accordion title="ridges">
+    Controls ridge and peak formations in mountainous terrain.
+    
+    **Use cases:** Make mountains more jagged or rounded, adjust peak height
+  </Accordion>
+  
+  <Accordion title="initial_density">
+    The initial 3D density before caves and features are carved.
+    
+    **Use cases:** Fundamental terrain shape modification, terrain amplification
+  </Accordion>
+  
+  <Accordion title="final_density">
+    The final density after caves and features, determines solid vs air blocks.
+    
+    **Use cases:** Add noise to terrain surfaces, create unusual formations
+  </Accordion>
+  
+  <Accordion title="temperature">
+    Controls temperature distribution affecting biome placement.
+    
+    **Use cases:** Shift climate zones, create temperature gradients
+  </Accordion>
+  
+  <Accordion title="vegetation">
+    Affects vegetation/humidity distribution for biome placement.
+    
+    **Use cases:** Modify biome distribution patterns, create vegetation bands
+  </Accordion>
+  
+  <Accordion title="vein_toggle, vein_ridged, vein_gap">
+    Control ore vein generation introduced in 1.18.
+    
+    **Use cases:** Modify ore vein frequency, size, or distribution
+  </Accordion>
+</AccordionGroup>
+
+## Density Function Wrapper System
+
+The wrapping mechanism uses the `DensityFunctionWrapper` utility:
+
+```java
+public class DensityFunctionWrapper {
+    public static DensityFunction wrap(final DensityFunction wrapped, DensityFunction wrapper) {
+        if (wrapped instanceof MergedDensityFunction merged) {
+            // Already wrapped, add another layer
+            final DensityFunction original = merged.original();
+            return new MergedDensityFunction(original, wrapped, wrapper.mapAll(value -> {
+                if (value instanceof OriginalMarkerDensityFunction) {
+                    return original;
+                }
+                if (isMarker(value)) {
+                    return wrapped;
+                }
+                return value;
+            }));
+        }
+        
+        // First wrapping
+        return new MergedDensityFunction(wrapped, wrapped, wrapper.mapAll(value -> {
+            if (isMarker(value)) {
+                return wrapped;
+            }
+            return value;
+        }));
+    }
+}
+```
+
+This system allows multiple modifiers to wrap the same density function, with each wrapper able to reference both the original and previously wrapped values.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Understand density function math">
+    Density functions use mathematical operations:
+    - `minecraft:add` - Addition
+    - `minecraft:mul` - Multiplication
+    - `minecraft:clamp` - Limit to min/max range
+    - `minecraft:blend_density` - Smooth blending
+    
+    Study vanilla density functions before creating custom ones.
+  </Accordion>
+  
+  <Accordion title="Use clamp to prevent extreme values">
+    Always clamp modified density functions to reasonable ranges to prevent terrain artifacts:
+    ```json
+    {
+      "type": "minecraft:clamp",
+      "input": { /* your modification */ },
+      "min": -2.0,
+      "max": 2.0
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Test extensively">
+    - Generate multiple worlds with different seeds
+    - Check terrain at different coordinates (0,0 vs 10000,10000)
+    - Verify biome transitions look natural
+    - Test in multiplayer to catch synchronization issues
+  </Accordion>
+  
+  <Accordion title="Monitor performance">
+    Density functions run for every block during generation. Complex wrappers can slow world generation:
+    - Use simple operations when possible
+    - Avoid deeply nested functions
+    - Profile with spark or similar tools
+  </Accordion>
+  
+  <Accordion title="Layer modifications carefully">
+    When multiple modifiers target the same function:
+    - Use priority to control order
+    - Consider whether each needs original vs wrapped value
+    - Test with all modifiers active simultaneously
+  </Accordion>
+</AccordionGroup>
+
+## Common Patterns
+
+<CardGroup cols={2}>
+  <Card title="Terrain Amplification" icon="mountain">
+    Multiply density functions by constants > 1.0 to create more dramatic terrain
+  </Card>
+  <Card title="Terrain Smoothing" icon="water">
+    Multiply by constants < 1.0 or use quarter_negative to smooth terrain
+  </Card>
+  <Card title="Height Offset" icon="arrows-up-down">
+    Add constants to depth or density to raise/lower terrain
+  </Card>
+  <Card title="Noise Injection" icon="wave-square">
+    Add noise functions to create variation in otherwise uniform terrain
+  </Card>
+</CardGroup>
+
+## Advanced Example: Multi-Layer Modification
+
+<CodeGroup>
+```json Layer 1: Base Amplification
+{
+  "type": "lithostitched:wrap_density_function",
+  "priority": 900,
+  "target_function": "minecraft:overworld/base_3d_noise",
+  "wrapper_function": {
+    "type": "minecraft:mul",
+    "argument1": {"type": "lithostitched:wrapped_marker"},
+    "argument2": {"type": "minecraft:constant", "argument": 1.3}
+  }
+}
+```
+
+```json Layer 2: Add Variation
+{
+  "type": "lithostitched:wrap_density_function",
+  "priority": 1000,
+  "target_function": "minecraft:overworld/base_3d_noise",
+  "wrapper_function": {
+    "type": "minecraft:add",
+    "argument1": {"type": "lithostitched:wrapped_marker"},
+    "argument2": {
+      "type": "minecraft:noise",
+      "noise": "minecraft:offset",
+      "xz_scale": 0.1,
+      "y_scale": 0.0
+    }
+  }
+}
+```
+
+```json Layer 3: Clamp Result
+{
+  "type": "lithostitched:wrap_density_function",
+  "priority": 1100,
+  "target_function": "minecraft:overworld/base_3d_noise",
+  "wrapper_function": {
+    "type": "minecraft:clamp",
+    "input": {"type": "lithostitched:wrapped_marker"},
+    "min": -2.0,
+    "max": 2.0
+  }
+}
+```
+</CodeGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Density Functions" icon="function" href="/api/surface/density-functions">
+    Learn about density function types
+  </Card>
+  <Card title="Noise Settings" icon="sliders" href="/api/surface/density-functions">
+    Understand noise configuration
+  </Card>
+  <Card title="Surface Modifiers" icon="mountain" href="/api/modifiers/surface-modifiers">
+    Modify surface block placement
+  </Card>
+  <Card title="Examples" icon="code" href="/guides/common-patterns">
+    See practical density modifier examples
+  </Card>
+</CardGroup>

@@ -1,0 +1,695 @@
+---
+title: Structure Processors
+description: Transform and modify structure blocks during placement with advanced processors
+---
+
+Structure processors modify blocks during structure generation. Lithostitched adds several powerful processor types beyond vanilla's capabilities.
+
+## Processor Types
+
+### ReferenceStructureProcessor
+
+References and applies multiple processor lists in sequence.
+
+<ParamField path="processor_type" type="string" required>
+  Must be `"lithostitched:reference"`
+</ParamField>
+
+<ParamField path="processor_lists" type="HolderSet<StructureProcessorList>" required>
+  Tag or list of processor lists to apply. Processors are applied in order.
+</ParamField>
+
+#### Example
+
+Apply multiple processor lists from a tag:
+
+```json
+{
+  "processors": [
+    {
+      "processor_type": "lithostitched:reference",
+      "processor_lists": "#mymod:dungeon_processors"
+    }
+  ]
+}
+```
+
+Tag definition (`data/mymod/tags/worldgen/processor_list/dungeon_processors.json`):
+
+```json
+{
+  "values": [
+    "mymod:weathering",
+    "mymod:mob_spawners",
+    "mymod:loot_chests"
+  ]
+}
+```
+
+#### Java Implementation
+
+```java
+public class ReferenceStructureProcessor extends StructureProcessor {
+    private final HolderSet<StructureProcessorList> processorLists;
+    
+    @Override
+    public StructureBlockInfo processBlock(...) {
+        StructureBlockInfo processedBlock = absolute;
+        
+        for (Holder<StructureProcessorList> processorList : this.processorLists) {
+            for (StructureProcessor processor : processorList.value().list()) {
+                processedBlock = processor.processBlock(...);
+                if (processedBlock == null) return null;
+            }
+        }
+        
+        return processedBlock;
+    }
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/processor/ReferenceStructureProcessor.java:31`
+
+---
+
+### ConditionProcessor
+
+Applies different processors based on a condition evaluation.
+
+<ParamField path="processor_type" type="string" required>
+  Must be `"lithostitched:condition"`
+</ParamField>
+
+<ParamField path="if_true" type="ProcessorCondition" required>
+  Condition to test. See [Processor Conditions](/api/conditions/processor-conditions) for available types.
+</ParamField>
+
+<ParamField path="then" type="StructureProcessor[]" required>
+  Processors to apply if condition is true.
+</ParamField>
+
+<ParamField path="else" type="StructureProcessor[]" default="[]">
+  Processors to apply if condition is false.
+</ParamField>
+
+<ParamField path="random_mode" type="RandomSettings" default='{"mode": "per_block"}'>
+  Controls random source creation. See [Random Settings](#random-settings).
+</ParamField>
+
+#### Example: Replace Degraded Blocks
+
+Replace blocks with weathered variants based on random chance:
+
+```json
+{
+  "processor_type": "lithostitched:condition",
+  "if_true": {
+    "type": "lithostitched:random_chance",
+    "chance": 0.3
+  },
+  "then": [
+    {
+      "processor_type": "minecraft:rule",
+      "rules": [
+        {
+          "input_predicate": {
+            "block": "minecraft:stone_bricks"
+          },
+          "location_predicate": {
+            "predicate_type": "minecraft:always_true"
+          },
+          "output_state": {
+            "Name": "minecraft:cracked_stone_bricks"
+          }
+        }
+      ]
+    }
+  ],
+  "else": []
+}
+```
+
+#### Example: Position-Based Processing
+
+Apply different blocks based on position:
+
+```json
+{
+  "processor_type": "lithostitched:condition",
+  "if_true": {
+    "type": "lithostitched:position",
+    "min_y": 0,
+    "max_y": 10
+  },
+  "then": [
+    {
+      "processor_type": "lithostitched:set_block",
+      "state_provider": {
+        "type": "minecraft:simple_state_provider",
+        "state": {
+          "Name": "minecraft:deepslate_bricks"
+        }
+      }
+    }
+  ],
+  "else": [
+    {
+      "processor_type": "lithostitched:set_block",
+      "state_provider": {
+        "type": "minecraft:simple_state_provider",
+        "state": {
+          "Name": "minecraft:stone_bricks"
+        }
+      }
+    }
+  ]
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/processor/ConditionProcessor.java:60`
+
+---
+
+### BlockSwapStructureProcessor
+
+Swaps specific blocks with replacements using a map.
+
+<ParamField path="processor_type" type="string" required>
+  Must be `"lithostitched:block_swap"`
+</ParamField>
+
+<ParamField path="blocks" type="Map<ResourceKey<Block>, ResourceKey<Block>>" required>
+  Map of source block keys to replacement block keys. Properties are preserved when possible.
+</ParamField>
+
+#### Example: Wood Type Swap
+
+Change oak structures to birch:
+
+```json
+{
+  "processor_type": "lithostitched:block_swap",
+  "blocks": {
+    "minecraft:oak_log": "minecraft:birch_log",
+    "minecraft:oak_planks": "minecraft:birch_planks",
+    "minecraft:oak_stairs": "minecraft:birch_stairs",
+    "minecraft:oak_slab": "minecraft:birch_slab",
+    "minecraft:oak_fence": "minecraft:birch_fence",
+    "minecraft:oak_door": "minecraft:birch_door",
+    "minecraft:oak_trapdoor": "minecraft:birch_trapdoor"
+  }
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/resources/data/lithostitched/worldgen/processor_list/shipwreck_palette/oak_and_birch.json:4`
+
+#### Example: Stone Variants
+
+Create ruined structures with different stone types:
+
+```json
+{
+  "processor_type": "lithostitched:block_swap",
+  "blocks": {
+    "minecraft:stone_bricks": "minecraft:mossy_stone_bricks",
+    "minecraft:stone_brick_stairs": "minecraft:mossy_stone_brick_stairs",
+    "minecraft:stone_brick_slab": "minecraft:mossy_stone_brick_slab"
+  }
+}
+```
+
+#### Block State Preservation
+
+The processor preserves block properties when possible:
+
+```java
+if (newBlock.isPresent()) {
+    return new StructureBlockInfo(
+        currentBlockInfo.pos(), 
+        newBlock.get().value().withPropertiesOf(currentBlockInfo.state()), 
+        currentBlockInfo.nbt()
+    );
+}
+```
+
+This means stairs keep their facing, slabs keep their type, etc.
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/processor/BlockSwapStructureProcessor.java:46`
+
+---
+
+### ApplyRandomStructureProcessor
+
+Randomly selects and applies one processor list from a set.
+
+<ParamField path="processor_type" type="string" required>
+  Must be `"lithostitched:apply_random"`
+</ParamField>
+
+<ParamField path="processor_lists" type="HolderSet<StructureProcessorList>" required>
+  Tag or list of processor lists. One is randomly selected per block/piece (based on mode).
+</ParamField>
+
+<ParamField path="mode" type="RandomSettings" required>
+  Controls randomization scope. See [Random Settings](#random-settings).
+</ParamField>
+
+#### Example: Per-Piece Palette Selection
+
+Randomly select a shipwreck wood palette per structure:
+
+```json
+{
+  "processor_type": "lithostitched:apply_random",
+  "mode": "per_piece",
+  "processor_lists": "#lithostitched:shipwreck_palettes"
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/resources/data/lithostitched/worldgen/processor_list/shipwreck.json:4`
+
+Tag definition (`data/lithostitched/tags/worldgen/processor_list/shipwreck_palettes.json`):
+
+```json
+{
+  "values": [
+    "lithostitched:shipwreck_palette/oak_and_birch",
+    "lithostitched:shipwreck_palette/oak_and_spruce",
+    "lithostitched:shipwreck_palette/spruce_and_dark_oak",
+    "lithostitched:shipwreck_palette/dark_oak_and_jungle",
+    "lithostitched:shipwreck_palette/jungle_and_spruce",
+    "lithostitched:shipwreck_palette/dark_oak_and_spruce"
+  ]
+}
+```
+
+#### Weighted Selection
+
+Use weighted lists for uneven probability:
+
+```json
+{
+  "processor_type": "lithostitched:apply_random",
+  "mode": "per_block",
+  "processor_lists": [
+    {
+      "weight": 10,
+      "data": "mymod:common_variant"
+    },
+    {
+      "weight": 3,
+      "data": "mymod:uncommon_variant"
+    },
+    {
+      "weight": 1,
+      "data": "mymod:rare_variant"
+    }
+  ]
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/processor/ApplyRandomStructureProcessor.java:31`
+
+---
+
+### SetBlockProcessor
+
+Sets blocks to a specific state using a state provider.
+
+<ParamField path="processor_type" type="string" required>
+  Must be `"lithostitched:set_block"`
+</ParamField>
+
+<ParamField path="state_provider" type="BlockStateProvider" required>
+  Provider for the block state to place. Can use any vanilla state provider.
+</ParamField>
+
+<ParamField path="preserve_state" type="boolean" default="true">
+  If true, copies block properties from the original block to the new block where possible.
+</ParamField>
+
+<ParamField path="random_mode" type="RandomMode" default="per_block">
+  How to seed the random source: `"per_block"` or `"per_piece"`.
+</ParamField>
+
+<ParamField path="block_entity_modifier" type="RuleBlockEntityModifier" default="passthrough">
+  Modifies or clears block entity data. Default preserves existing NBT.
+</ParamField>
+
+#### Example: Random Stone Variants
+
+Place random stone types:
+
+```json
+{
+  "processor_type": "lithostitched:set_block",
+  "state_provider": {
+    "type": "minecraft:weighted_state_provider",
+    "entries": [
+      {
+        "weight": 3,
+        "data": { "Name": "minecraft:stone" }
+      },
+      {
+        "weight": 2,
+        "data": { "Name": "minecraft:andesite" }
+      },
+      {
+        "weight": 1,
+        "data": { "Name": "minecraft:diorite" }
+      }
+    ]
+  },
+  "preserve_state": false,
+  "random_mode": "per_block"
+}
+```
+
+#### Example: Preserve Properties
+
+Replace block type while keeping orientation:
+
+```json
+{
+  "processor_type": "lithostitched:set_block",
+  "state_provider": {
+    "type": "minecraft:simple_state_provider",
+    "state": { "Name": "minecraft:quartz_stairs" }
+  },
+  "preserve_state": true
+}
+```
+
+If the original block is `oak_stairs[facing=north,half=top]`, the result is `quartz_stairs[facing=north,half=top]`.
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/processor/SetBlockProcessor.java:58`
+
+---
+
+### DiscardInputProcessor
+
+Removes blocks (replaces with air).
+
+<ParamField path="processor_type" type="string" required>
+  Must be `"lithostitched:discard_input"`
+</ParamField>
+
+#### Example
+
+Clear all blocks (useful in condition processors):
+
+```json
+{
+  "processor_type": "lithostitched:discard_input"
+}
+```
+
+This processor returns `null`, which tells the structure system to skip placing this block.
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/processor/DiscardInputProcessor.java:17`
+
+---
+
+### ScheduleTickProcessor
+
+Schedules block and fluid ticks immediately after placement.
+
+<ParamField path="processor_type" type="string" required>
+  Must be `"lithostitched:schedule_tick"`
+</ParamField>
+
+#### Example
+
+Update water and lava flows:
+
+```json
+{
+  "processors": [
+    {
+      "processor_type": "lithostitched:schedule_tick"
+    }
+  ]
+}
+```
+
+Useful for:
+- Triggering water/lava flow
+- Activating redstone
+- Starting falling block physics
+- Triggering growth for saplings/crops
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/processor/ScheduleTickProcessor.java:22`
+
+---
+
+## Random Settings
+
+Controls how random sources are created for processors.
+
+<ParamField path="mode" type="RandomMode" required>
+  <Expandable title="Available Modes">
+    <ResponseField name="per_block" type="string">
+      Creates a new random source for each block position. Results in maximum variation.
+      
+      ```json
+      "random_mode": "per_block"
+      ```
+    </ResponseField>
+    
+    <ResponseField name="per_piece" type="string">
+      Creates one random source per structure piece. All blocks in the piece share randomness.
+      
+      ```json
+      "random_mode": "per_piece"
+      ```
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="name" type="identifier" default="lithostitched:default">
+  Optional identifier for the random source. Different names produce different random sequences.
+</ParamField>
+
+### Example Configurations
+
+Simple mode:
+```json
+"random_mode": "per_piece"
+```
+
+Full configuration:
+```json
+"random_mode": {
+  "mode": "per_block",
+  "name": "mymod:custom_randomization"
+}
+```
+
+### Random Source Creation
+
+```java
+public RandomSource create(WorldGenLevel level, BlockPos piecePos, 
+    StructureBlockInfo blockPos) {
+    return RandomSource.create(level.getSeed() + this.name.hashCode())
+        .forkPositional()
+        .at(this.mode.select(piecePos, blockPos));
+}
+```
+
+**Source:** `/home/daytona/workspace/source/src/common/main/java/dev/worldgen/lithostitched/worldgen/processor/RandomSettings.java:29`
+
+---
+
+## Processor Lists
+
+Processors are organized into lists for reuse:
+
+**File:** `data/mymod/worldgen/processor_list/dungeon_weathering.json`
+
+```json
+{
+  "processors": [
+    {
+      "processor_type": "lithostitched:condition",
+      "if_true": {
+        "type": "lithostitched:random_chance",
+        "chance": 0.2
+      },
+      "then": [
+        {
+          "processor_type": "minecraft:rule",
+          "rules": [
+            {
+              "input_predicate": { "block": "minecraft:stone_bricks" },
+              "location_predicate": { "predicate_type": "minecraft:always_true" },
+              "output_state": { "Name": "minecraft:cracked_stone_bricks" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "processor_type": "lithostitched:condition",
+      "if_true": {
+        "type": "lithostitched:random_chance",
+        "chance": 0.1
+      },
+      "then": [
+        {
+          "processor_type": "minecraft:rule",
+          "rules": [
+            {
+              "input_predicate": { "block": "minecraft:stone_bricks" },
+              "location_predicate": { "predicate_type": "minecraft:always_true" },
+              "output_state": { "Name": "minecraft:mossy_stone_bricks" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## Common Patterns
+
+### Multi-Stage Processing
+
+Chain processors for complex transformations:
+
+```json
+{
+  "processors": [
+    // Stage 1: Swap wood types
+    {
+      "processor_type": "lithostitched:block_swap",
+      "blocks": {
+        "minecraft:oak_planks": "minecraft:spruce_planks"
+      }
+    },
+    // Stage 2: Add weathering
+    {
+      "processor_type": "lithostitched:condition",
+      "if_true": { "type": "lithostitched:random_chance", "chance": 0.3 },
+      "then": [
+        { "processor_type": "lithostitched:set_block", "state_provider": { /*...*/ } }
+      ]
+    },
+    // Stage 3: Schedule updates
+    {
+      "processor_type": "lithostitched:schedule_tick"
+    }
+  ]
+}
+```
+
+### Biome-Specific Palettes
+
+Combine with conditions for biome-aware processing:
+
+```json
+{
+  "processor_type": "lithostitched:condition",
+  "if_true": {
+    "type": "lithostitched:matching_blocks",
+    "block_type": "relative",
+    "blocks": "#minecraft:planks"
+  },
+  "then": [
+    {
+      "processor_type": "lithostitched:apply_random",
+      "mode": "per_piece",
+      "processor_lists": "#mymod:biome_palettes"
+    }
+  ]
+}
+```
+
+### Conditional Block Removal
+
+Remove blocks based on conditions:
+
+```json
+{
+  "processor_type": "lithostitched:condition",
+  "if_true": {
+    "type": "lithostitched:position",
+    "min_y": -64,
+    "max_y": 0
+  },
+  "then": [
+    { "processor_type": "lithostitched:discard_input" }
+  ]
+}
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use processor lists for reusability">
+    Define processor lists once and reference them across multiple structures:
+    
+    ```json
+    // Define once
+    "data/mymod/worldgen/processor_list/weathering.json"
+    
+    // Reference many times
+    "processors": "mymod:weathering"
+    ```
+  </Accordion>
+  
+  <Accordion title="Optimize random mode selection">
+    - Use `per_piece` for consistent structure appearance (faster)
+    - Use `per_block` for maximum variation (slower)
+    
+    ```json
+    // Consistent wood palette across shipwreck
+    "mode": "per_piece"
+    
+    // Varied weathering per block
+    "mode": "per_block"
+    ```
+  </Accordion>
+  
+  <Accordion title="Preserve properties when swapping">
+    Use `preserve_state: true` when block orientation matters:
+    
+    ```json
+    {
+      "processor_type": "lithostitched:set_block",
+      "preserve_state": true,
+      "state_provider": { /*...*/ }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Layer processors logically">
+    Apply processors in order:
+    1. Block swaps (material changes)
+    2. Weathering/randomization
+    3. Tick scheduling (last)
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Processor Conditions" icon="filter" href="/api/blocks/processor-conditions">
+    Conditions for conditional processors
+  </Card>
+  <Card title="Template Pools" icon="layer-group" href="/api/structures/template-pools">
+    Apply processors to pool elements
+  </Card>
+  <Card title="Block State Providers" icon="cube" href="/api/blocks/state-providers">
+    Provide block states to processors
+  </Card>
+  <Card title="Structure Types" icon="building" href="/api/structures/template-pools">
+    Complete structure system
+  </Card>
+</CardGroup>
