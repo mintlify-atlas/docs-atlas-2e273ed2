@@ -1,0 +1,119 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Lithostitched",
+  "projectDescription": "A Minecraft library mod with new configurability and compatibility enhancements for worldgen",
+  "theme": "aspen",
+  "primaryColor": "#04ac5c",
+  "lightColor": "#1fd56c",
+  "darkColor": "#17221f",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/modifiers",
+              "concepts/registry-system",
+              "concepts/data-driven-config"
+            ]
+          },
+          {
+            "group": "Examples & Guides",
+            "pages": [
+              "guides/adding-modifiers",
+              "guides/custom-structures",
+              "guides/bandlands-terrain",
+              "guides/common-patterns"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Worldgen Modifiers",
+            "pages": [
+              "api/modifiers/overview",
+              "api/modifiers/structure-modifiers",
+              "api/modifiers/surface-modifiers",
+              "api/modifiers/density-modifiers"
+            ]
+          },
+          {
+            "group": "Structures & Templates",
+            "pages": [
+              "api/structures/template-pools",
+              "api/structures/pool-elements",
+              "api/structures/pool-aliases",
+              "api/structures/processors"
+            ]
+          },
+          {
+            "group": "Surface & Terrain",
+            "pages": [
+              "api/surface/bandlands",
+              "api/surface/surface-rules",
+              "api/surface/conditions",
+              "api/surface/density-functions"
+            ]
+          },
+          {
+            "group": "Features & Placement",
+            "pages": [
+              "api/features/feature-types",
+              "api/features/placement-modifiers",
+              "api/features/placement-conditions",
+              "api/features/block-predicates"
+            ]
+          },
+          {
+            "group": "Blocks & State",
+            "pages": [
+              "api/blocks/state-providers",
+              "api/blocks/block-entity-modifiers",
+              "api/blocks/processor-conditions"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Data-driven worldgen modifiers for structures, terrain, and features",
+    "Bandlands terrain generation system with customizable bands",
+    "Enhanced structure template pool system with aliases and delegation",
+    "Custom density functions and surface rules for terrain shaping",
+    "Block predicates, placement modifiers, and placement conditions",
+    "Structure processors with advanced conditional logic",
+    "Custom features including dungeons, ore generation, and decorations",
+    "Cross-loader compatibility (Fabric and NeoForge)"
+  ],
+  "publicApiSurface": [
+    "Modifier - Base interface for worldgen modifiers",
+    "AddTemplatePoolElementsModifier - Add elements to structure pools",
+    "AddSurfaceRuleModifier - Add custom surface rules",
+    "SetPoolAliasesModifier - Configure pool aliases",
+    "WrapDensityFunctionModifier - Modify density functions",
+    "Band - Bandlands terrain band system",
+    "BandlandsRule - Surface rule for bandlands",
+    "DelegatingPoolElement - Pool element delegation",
+    "ConditionProcessor - Conditional structure processing",
+    "PlacementCondition - Feature placement conditions",
+    "BlockStatePredicate - Block state testing",
+    "WeightedProvider - Weighted block state selection",
+    "CompositeFeature - Combine multiple features",
+    "DungeonFeature - Custom dungeon generation",
+    "LargeDripstoneFeature - Enhanced dripstone caves"
+  ]
+}
