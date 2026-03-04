@@ -101,6 +101,52 @@ public record NoOpModifier() implements Modifier
 
 Place this in `data/<namespace>/lithostitched_worldgen_modifier/<path>.json` to override another modifier at the same path.
 
+### Stack Feature Modifier
+
+The `stack_feature` modifier wraps existing configured features with additional placed features, allowing layered generation:
+
+```java
+public record StackFeatureModifier(
+    int priority,
+    HolderSet<ConfiguredFeature<?, ?>> baseFeatures,
+    Holder<PlacedFeature> stackedFeature,
+    CompositeConfig.Type placementType
+) implements Modifier
+```
+
+<ParamField path="base_features" type="HolderSet<ConfiguredFeature>" required>
+  The configured features to wrap with additional generation
+</ParamField>
+
+<ParamField path="stacked_feature" type="PlacedFeature" required>
+  The placed feature to add on top of base features
+</ParamField>
+
+<ParamField path="placement_type" type="CompositeConfig.Type" default="CANCEL_ON_FAILURE">
+  How to handle placement failures: `CANCEL_ON_FAILURE`, `CONTINUE_ON_FAILURE`, or `REQUIRE_ALL`
+</ParamField>
+
+<CodeGroup>
+```json Stack Feature Example
+{
+  "type": "lithostitched:stack_feature",
+  "priority": 1000,
+  "base_features": "#minecraft:tree",
+  "stacked_feature": {
+    "feature": "minecraft:flower",
+    "placement": []
+  },
+  "placement_type": "CONTINUE_ON_FAILURE"
+}
+```
+</CodeGroup>
+
+This wraps all tree features with flower generation, adding flowers on top of generated trees.
+
+<Note>
+  See the [Adding Modifiers guide](/guides/adding-modifiers#basic-feature-stacking) for practical examples.
+</Note>
+
 ## File Location
 
 All modifiers must be placed in:
